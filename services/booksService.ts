@@ -1,0 +1,92 @@
+import type { Book, BookPayload } from "@/types/book";
+
+import { apiClient } from "@/lib/api";
+import { chaptersService } from "@/services/chaptersService";
+
+type BookApi = {
+  id: string;
+  title: string;
+  author: string;
+  source_language: string;
+  target_language: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+const handleResponse = <T>(response: { success: boolean; data?: T; error?: { message: string } }) => {
+  if (!response.success) {
+    throw new Error(response.error?.message ?? "Erro inesperado");
+  }
+  return response.data as T;
+};
+
+const mapBook = (book: BookApi): Book => ({
+  id: book.id,
+  title: book.title,
+  author: book.author,
+  sourceLanguage: book.source_language,
+  targetLanguage: book.target_language,
+  status: book.status as Book["status"],
+  createdAt: book.created_at,
+  updatedAt: book.updated_at,
+});
+
+const toBookCreatePayload = (payload: BookPayload) => ({
+  title: payload.title,
+  author: payload.author,
+  source_language: payload.sourceLanguage,
+  target_language: payload.targetLanguage,
+});
+
+const toBookUpdatePayload = (payload: BookPayload) => ({
+  title: payload.title,
+  author: payload.author,
+  source_language: payload.sourceLanguage,
+  target_language: payload.targetLanguage,
+  status: payload.status,
+});
+
+export const booksService = {
+  list: async () => {
+    const data = handleResponse<BookApi[]>(await apiClient.get("/books"));
+    return data.map(mapBook);
+  },
+  listWithStats: async () => {
+    const books = await booksService.list();
+    const chapters = await Promise.all(
+      books.map((book) => chaptersService.listWithStats(book.id).catch(() => [])),
+    );
+    return books.map((book, index) => {
+      const bookChapters = chapters[index] ?? [];
+      const translatedChapters = bookChapters.filter(
+        (chapter) => chapter.status === "translated",
+      ).length;
+      return {
+        ...book,
+        totalChapters: bookChapters.length,
+        translatedChapters,
+      };
+    });
+  },
+  get: async (id: string) => {
+    const data = handleResponse<BookApi>(
+      await apiClient.get(`/books/${encodeURIComponent(id)}`),
+    );
+    return mapBook(data);
+  },
+  create: async (payload: BookPayload) => {
+    const data = handleResponse<BookApi>(
+      await apiClient.post("/books", toBookCreatePayload(payload)),
+    );
+    return mapBook(data);
+  },
+  update: async (id: string, payload: BookPayload) => {
+    const data = handleResponse<BookApi>(
+      await apiClient.put(`/books/${encodeURIComponent(id)}`, toBookUpdatePayload(payload)),
+    );
+    return mapBook(data);
+  },
+  delete: async (id: string) =>
+    handleResponse<void>(await apiClient.delete(`/books/${encodeURIComponent(id)}`)),
+};
