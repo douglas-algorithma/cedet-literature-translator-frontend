@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -18,7 +18,8 @@ import { glossaryService } from "@/services/glossaryService";
 import { useGlossaryStore } from "@/stores/glossaryStore";
 import type { GlossaryTerm } from "@/types/glossary";
 
-export default function GlossaryPage({ params }: { params: { bookId: string } }) {
+export default function GlossaryPage({ params }: { params: Promise<{ bookId: string }> }) {
+  const { bookId } = use(params);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [category, setCategory] = useState("");
@@ -34,8 +35,8 @@ export default function GlossaryPage({ params }: { params: { bookId: string } })
   const { pendingTerms, approvePendingTerm, rejectPendingTerm } = useGlossaryStore();
 
   const { data: terms = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["glossary", params.bookId],
-    queryFn: () => glossaryService.list(params.bookId),
+    queryKey: ["glossary", bookId],
+    queryFn: () => glossaryService.list(bookId),
   });
 
   const categories = useMemo(() => {
@@ -89,7 +90,7 @@ export default function GlossaryPage({ params }: { params: { bookId: string } })
         toast.success("Termo atualizado");
       } else {
         await glossaryService.create({
-          bookId: params.bookId,
+          bookId,
           sourceTerm: values.sourceTerm,
           targetTerm: values.targetTerm,
           context: values.context,
@@ -128,7 +129,7 @@ export default function GlossaryPage({ params }: { params: { bookId: string } })
     setSaving(true);
     try {
       await glossaryService.create({
-        bookId: params.bookId,
+        bookId,
         sourceTerm: term.term,
         targetTerm: term.suggestedTranslation,
         context: term.context ?? "",

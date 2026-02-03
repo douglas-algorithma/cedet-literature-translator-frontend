@@ -5,6 +5,17 @@ export const getChapterProgress = (chapter: Pick<Chapter, "translatedParagraphs"
   return Math.round((chapter.translatedParagraphs / chapter.totalParagraphs) * 100);
 };
 
+export const isChapterTranslated = (
+  chapter: Pick<Chapter, "status" | "translatedParagraphs" | "totalParagraphs">,
+) => {
+  const totalParagraphs = chapter.totalParagraphs ?? 0;
+  const translatedParagraphs = chapter.translatedParagraphs ?? 0;
+  if (totalParagraphs > 0) {
+    return translatedParagraphs >= totalParagraphs;
+  }
+  return chapter.status === "translated";
+};
+
 export const segmentText = (text: string) =>
   text
     .split(/\n\s*\n/)

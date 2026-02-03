@@ -20,6 +20,7 @@ import {
   formatBookStatus,
   formatDate,
   getBookProgressFromChapters,
+  isChapterTranslated,
   getStatusVariant,
   cn,
 } from "@/lib/utils";
@@ -86,7 +87,7 @@ export function BookDetails({ bookId }: { bookId: string }) {
   }
 
   const totalChapters = chapters.length;
-  const translatedChapters = chapters.filter((chapter) => chapter.status === "translated").length;
+  const translatedChapters = chapters.filter((chapter) => isChapterTranslated(chapter)).length;
   const totalParagraphs = chapters.reduce(
     (sum, chapter) => sum + (chapter.totalParagraphs ?? 0),
     0,

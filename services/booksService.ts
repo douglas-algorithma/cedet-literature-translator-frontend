@@ -1,6 +1,7 @@
 import type { Book, BookPayload } from "@/types/book";
 
 import { apiClient } from "@/lib/api";
+import { isChapterTranslated } from "@/lib/utils";
 import { chaptersService } from "@/services/chaptersService";
 
 type BookApi = {
@@ -59,13 +60,22 @@ export const booksService = {
     );
     return books.map((book, index) => {
       const bookChapters = chapters[index] ?? [];
-      const translatedChapters = bookChapters.filter(
-        (chapter) => chapter.status === "translated",
-      ).length;
+      const totalChapters = bookChapters.length;
+      const translatedChapters = bookChapters.filter((chapter) => isChapterTranslated(chapter)).length;
+      const totalParagraphs = bookChapters.reduce(
+        (sum, chapter) => sum + (chapter.totalParagraphs ?? 0),
+        0,
+      );
+      const translatedParagraphs = bookChapters.reduce(
+        (sum, chapter) => sum + (chapter.translatedParagraphs ?? 0),
+        0,
+      );
       return {
         ...book,
-        totalChapters: bookChapters.length,
+        totalChapters,
         translatedChapters,
+        totalParagraphs,
+        translatedParagraphs,
       };
     });
   },

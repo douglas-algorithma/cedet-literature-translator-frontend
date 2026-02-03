@@ -164,7 +164,7 @@ export function BookDashboard() {
           {filteredBooks.map((book, index) => (
             <div
               key={book.id}
-              className="animate-rise"
+              className="h-full animate-rise"
               style={{ animationDelay: `${index * 80}ms` }}
             >
               <BookCard book={book} onDeleted={() => refetch()} />

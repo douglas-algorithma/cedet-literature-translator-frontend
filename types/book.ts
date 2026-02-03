@@ -8,6 +8,8 @@ export type Book = {
   targetLanguage: string;
   totalChapters?: number;
   translatedChapters?: number;
+  totalParagraphs?: number;
+  translatedParagraphs?: number;
   status: BookStatus;
   updatedAt: string;
   createdAt: string;
@@ -18,5 +20,11 @@ export type Book = {
 
 export type BookPayload = Omit<
   Book,
-  "id" | "createdAt" | "updatedAt" | "totalChapters" | "translatedChapters"
+  | "id"
+  | "createdAt"
+  | "updatedAt"
+  | "totalChapters"
+  | "translatedChapters"
+  | "totalParagraphs"
+  | "translatedParagraphs"
 >;

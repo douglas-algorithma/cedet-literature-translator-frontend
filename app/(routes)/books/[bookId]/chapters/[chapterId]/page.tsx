@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -47,8 +47,9 @@ const mapBackendStatus = (status: Paragraph["status"]): TranslationStatus => {
 export default function TranslationEditorPage({
   params,
 }: {
-  params: { bookId: string; chapterId: string };
+  params: Promise<{ bookId: string; chapterId: string }>;
 }) {
+  const { bookId, chapterId } = use(params);
   const router = useRouter();
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
@@ -74,18 +75,18 @@ export default function TranslationEditorPage({
   const { addPendingTerm } = useGlossaryStore();
 
   const { data: book, isLoading: bookLoading } = useQuery({
-    queryKey: ["book", params.bookId],
-    queryFn: () => booksService.get(params.bookId),
+    queryKey: ["book", bookId],
+    queryFn: () => booksService.get(bookId),
   });
 
   const { data: chapters = [] } = useQuery({
-    queryKey: ["chapters", params.bookId],
-    queryFn: () => chaptersService.list(params.bookId),
+    queryKey: ["chapters", bookId],
+    queryFn: () => chaptersService.list(bookId),
   });
 
   const { data: chapter, isLoading: chapterLoading } = useQuery({
-    queryKey: ["chapter", params.chapterId],
-    queryFn: () => chaptersService.get(params.chapterId),
+    queryKey: ["chapter", chapterId],
+    queryFn: () => chaptersService.get(chapterId),
   });
 
   const {
@@ -93,13 +94,13 @@ export default function TranslationEditorPage({
     isLoading: paragraphsLoading,
     refetch,
   } = useQuery({
-    queryKey: ["paragraphs", params.chapterId],
-    queryFn: () => chaptersService.listParagraphs(params.chapterId),
+    queryKey: ["paragraphs", chapterId],
+    queryFn: () => chaptersService.listParagraphs(chapterId),
   });
 
   const { data: glossaryTerms = [] } = useQuery({
-    queryKey: ["glossary", params.bookId],
-    queryFn: () => glossaryService.list(params.bookId),
+    queryKey: ["glossary", bookId],
+    queryFn: () => glossaryService.list(bookId),
   });
 
   const getParagraphStatus = useCallback(
@@ -336,7 +337,7 @@ export default function TranslationEditorPage({
         }
         if (event.key.toLowerCase() === "g") {
           event.preventDefault();
-          router.push(`/books/${params.bookId}/glossary`);
+          router.push(`/books/${bookId}/glossary`);
         }
       }
       if (event.altKey && event.key === "ArrowUp") {
@@ -348,7 +349,7 @@ export default function TranslationEditorPage({
         moveSelection("down");
       }
     },
-    [activeParagraphId, handleTranslateParagraph, moveSelection, paragraphs, params.bookId, router],
+    [activeParagraphId, bookId, handleTranslateParagraph, moveSelection, paragraphs, router],
   );
 
   useEffect(() => {
@@ -357,8 +358,8 @@ export default function TranslationEditorPage({
   }, [handleKeyboardShortcuts]);
 
   const { status: connectionStatus, reconnectAttempts } = useWebSocket({
-    bookId: params.bookId,
-    chapterId: params.chapterId,
+    bookId,
+    chapterId,
     onEvent: (event) => {
       if (event.type === "translation.started") {
         const payload = event.payload as { paragraphId: string };
@@ -425,12 +426,12 @@ export default function TranslationEditorPage({
   return (
     <div className="space-y-6">
       <TranslationHeader
-        backHref={`/books/${params.bookId}`}
-        title={`Capítulo ${chapter?.number ?? params.chapterId}: ${chapter?.title ?? ""}`}
+        backHref={`/books/${bookId}`}
+        title={`Capítulo ${chapter?.number ?? chapterId}: ${chapter?.title ?? ""}`}
         subtitle={`${book?.title ?? "Livro"} · Editor de tradução`}
         chapterOptions={chapterOptions}
-        selectedChapter={params.chapterId}
-        onChapterChange={(value) => router.push(`/books/${params.bookId}/chapters/${value}`)}
+        selectedChapter={chapterId}
+        onChapterChange={(value) => router.push(`/books/${bookId}/chapters/${value}`)}
         progressLabel={`${approvedCount}/${paragraphs.length} aprovados · ${translatedCount}/${paragraphs.length} traduzidos`}
         progressValue={progressValue}
         onTranslateAll={handleTranslateAll}

@@ -7,7 +7,13 @@ import { buttonStyles } from "@/components/common/Button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/common/Card";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { BookActions } from "@/components/book/BookActions";
-import { formatBookLanguages, formatBookStatus, formatDate, getBookProgress, getStatusVariant } from "@/lib/utils";
+import {
+  formatBookLanguages,
+  formatBookStatus,
+  formatDate,
+  getBookProgressFromChapters,
+  getStatusVariant,
+} from "@/lib/utils";
 import type { Book } from "@/types/book";
 
 export type BookCardProps = {
@@ -16,7 +22,12 @@ export type BookCardProps = {
 };
 
 export function BookCard({ book, onDeleted }: BookCardProps) {
-  const progress = getBookProgress(book);
+  const progress = getBookProgressFromChapters({
+    totalChapters: book.totalChapters ?? 0,
+    translatedChapters: book.translatedChapters ?? 0,
+    totalParagraphs: book.totalParagraphs ?? 0,
+    translatedParagraphs: book.translatedParagraphs ?? 0,
+  });
   const translatedChapters = book.translatedChapters ?? 0;
   const totalChapters = book.totalChapters ?? 0;
   const chapters = `${translatedChapters}/${totalChapters} capítulos`;
@@ -24,7 +35,7 @@ export function BookCard({ book, onDeleted }: BookCardProps) {
   const statusVariant = getStatusVariant(book.status);
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-[320px] flex-col">
       <CardHeader>
         <div>
           <CardTitle>{book.title}</CardTitle>
@@ -35,7 +46,7 @@ export function BookCard({ book, onDeleted }: BookCardProps) {
           <BookActions bookId={book.id} onDeleted={onDeleted} />
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex-1 space-y-4">
         <div className="flex items-center justify-between text-sm text-text-muted">
           <span>{formatBookLanguages(book)}</span>
           <span>{chapters}</span>

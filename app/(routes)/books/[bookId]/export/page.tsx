@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -122,7 +122,8 @@ const buildChapterMarkdown = ({
   return lines.join("\n");
 };
 
-export default function ExportPage({ params }: { params: { bookId: string } }) {
+export default function ExportPage({ params }: { params: Promise<{ bookId: string }> }) {
+  const { bookId } = use(params);
   const [format, setFormat] = useState<ExportFormat>("docx");
   const [options, setOptions] = useState<ExportOptions>({
     includeMetadata: true,
@@ -133,13 +134,13 @@ export default function ExportPage({ params }: { params: { bookId: string } }) {
   const [isExporting, setIsExporting] = useState(false);
 
   const { data: book } = useQuery({
-    queryKey: ["book", params.bookId],
-    queryFn: () => booksService.get(params.bookId),
+    queryKey: ["book", bookId],
+    queryFn: () => booksService.get(bookId),
   });
 
   const { data: chapters = [], isLoading } = useQuery({
-    queryKey: ["chapters", params.bookId, "export"],
-    queryFn: () => chaptersService.listWithStats(params.bookId),
+    queryKey: ["chapters", bookId, "export"],
+    queryFn: () => chaptersService.listWithStats(bookId),
   });
 
   const pendingChapters = useMemo(
