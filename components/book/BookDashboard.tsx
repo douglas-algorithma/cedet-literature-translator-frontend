@@ -134,7 +134,7 @@ export function BookDashboard() {
       </section>
 
       {isLoading ? (
-        <section className="grid gap-6 md:grid-cols-2">
+        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <BookCardSkeleton key={`skeleton-${index}`} />
           ))}
@@ -160,7 +160,7 @@ export function BookDashboard() {
           }
         />
       ) : (
-        <section className="grid gap-6 md:grid-cols-2">
+        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredBooks.map((book, index) => (
             <div
               key={book.id}

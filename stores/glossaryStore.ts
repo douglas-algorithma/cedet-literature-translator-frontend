@@ -11,6 +11,7 @@ type GlossaryStore = {
   addTerm: (term: GlossaryTerm) => void;
   updateTerm: (term: GlossaryTerm) => void;
   deleteTerm: (id: string) => void;
+  addPendingTerm: (term: GlossarySuggestion) => void;
   approvePendingTerm: (term: GlossarySuggestion) => void;
   rejectPendingTerm: (term: GlossarySuggestion) => void;
 };
@@ -31,6 +32,10 @@ export const useGlossaryStore = create<GlossaryStore>((set) => ({
     })),
   deleteTerm: (id) =>
     set((state) => ({ terms: state.terms.filter((item) => item.id !== id) })),
+  addPendingTerm: (term) =>
+    set((state) => ({
+      pendingTerms: [...state.pendingTerms.filter((item) => item.term !== term.term), term],
+    })),
   approvePendingTerm: (term) =>
     set((state) => ({
       pendingTerms: state.pendingTerms.filter((item) => item.term !== term.term),

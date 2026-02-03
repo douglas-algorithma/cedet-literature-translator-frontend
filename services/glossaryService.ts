@@ -1,6 +1,7 @@
 import type { GlossaryTerm } from "@/types/glossary";
 
 import { apiClient } from "@/lib/api";
+import { parseGlossaryContext, serializeGlossaryContext } from "@/lib/utils/glossary";
 
 type GlossaryApi = {
   id: string;
@@ -19,11 +20,19 @@ const handleResponse = <T>(response: { success: boolean; data?: T; error?: { mes
 };
 
 const mapTerm = (term: GlossaryApi): GlossaryTerm => ({
+  ...(() => {
+    const parsed = parseGlossaryContext(term.context ?? "");
+    return {
+      context: parsed.notes,
+      category: parsed.category,
+      caseSensitive: parsed.caseSensitive,
+      wholeWord: parsed.wholeWord,
+    };
+  })(),
   id: term.id,
   bookId: term.book_id ?? null,
   sourceTerm: term.source_term,
   targetTerm: term.target_term,
-  context: term.context,
   createdAt: term.created_at,
 });
 
@@ -33,13 +42,26 @@ export const glossaryService = {
     const data = handleResponse<GlossaryApi[]>(await apiClient.get(`/glossary${query}`));
     return data.map(mapTerm);
   },
-  create: async (payload: { bookId?: string | null; sourceTerm: string; targetTerm: string; context: string }) => {
+  create: async (payload: {
+    bookId?: string | null;
+    sourceTerm: string;
+    targetTerm: string;
+    context: string;
+    category?: string;
+    caseSensitive?: boolean;
+    wholeWord?: boolean;
+  }) => {
     const data = handleResponse<GlossaryApi>(
       await apiClient.post("/glossary", {
         book_id: payload.bookId ?? null,
         source_term: payload.sourceTerm,
         target_term: payload.targetTerm,
-        context: payload.context,
+        context: serializeGlossaryContext({
+          notes: payload.context,
+          category: payload.category,
+          caseSensitive: payload.caseSensitive,
+          wholeWord: payload.wholeWord,
+        }),
       }),
     );
     return mapTerm(data);
@@ -49,7 +71,12 @@ export const glossaryService = {
       await apiClient.put(`/glossary/${id}`, {
         source_term: payload.sourceTerm,
         target_term: payload.targetTerm,
-        context: payload.context,
+        context: serializeGlossaryContext({
+          notes: payload.context ?? "",
+          category: payload.category,
+          caseSensitive: payload.caseSensitive,
+          wholeWord: payload.wholeWord,
+        }),
       }),
     );
     return mapTerm(data);

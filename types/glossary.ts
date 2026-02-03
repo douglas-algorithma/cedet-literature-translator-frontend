@@ -4,6 +4,9 @@ export type GlossaryTerm = {
   sourceTerm: string;
   targetTerm: string;
   context: string;
+  category?: string;
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
   createdAt: string;
 };
 

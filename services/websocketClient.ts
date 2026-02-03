@@ -9,6 +9,7 @@ export const createSocket = (url?: string) => {
 
   socket = io(url ?? process.env.NEXT_PUBLIC_WS_URL ?? "", {
     autoConnect: false,
+    reconnection: false,
     transports: ["websocket"],
   });
 

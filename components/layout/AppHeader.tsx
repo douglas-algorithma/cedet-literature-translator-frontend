@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { buttonStyles, Button } from "@/components/common/Button";
+import { KeyboardShortcutsModal } from "@/components/common/KeyboardShortcutsModal";
 import { ICONS } from "@/config/icons";
 import { APP_NAME, APP_TAGLINE } from "@/config/app";
 import { MAIN_NAV } from "@/config/navigation";
+import { useKeyboardShortcuts } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
 const renderNavItem = (item: (typeof MAIN_NAV)[number]) => {
@@ -27,8 +31,43 @@ const renderNavItem = (item: (typeof MAIN_NAV)[number]) => {
 };
 
 export function AppHeader() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const MenuIcon = ICONS.menu;
+
+  useKeyboardShortcuts(
+    {
+      "ctrl+n": (event) => {
+        event.preventDefault();
+        router.push("/books/new");
+      },
+      "ctrl+s": (event) => {
+        event.preventDefault();
+        const form = document.querySelector("form");
+        if (form && "requestSubmit" in form) {
+          (form as HTMLFormElement).requestSubmit();
+        } else {
+          toast.message("Nenhum formulário ativo para salvar.");
+        }
+      },
+      "ctrl+g": (event) => {
+        event.preventDefault();
+        const match = pathname?.match(/^\/books\/([^/]+)/);
+        if (match?.[1]) {
+          router.push(`/books/${match[1]}/glossary`);
+        } else {
+          toast.message("Abra um livro para acessar o glossário.");
+        }
+      },
+      "?": (event) => {
+        event.preventDefault();
+        setShortcutsOpen(true);
+      },
+    },
+    true,
+  );
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-surface/80 backdrop-blur">
@@ -46,6 +85,9 @@ export function AppHeader() {
           {MAIN_NAV.map(renderNavItem)}
         </nav>
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setShortcutsOpen(true)}>
+            Atalhos
+          </Button>
           <Button variant="outline" size="sm">
             Suporte
           </Button>
@@ -77,6 +119,8 @@ export function AppHeader() {
           </nav>
         </div>
       ) : null}
+
+      <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </header>
   );
 }

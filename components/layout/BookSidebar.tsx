@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { ICONS } from "@/config/icons";
 import { BOOK_NAV } from "@/config/navigation";
@@ -12,13 +13,37 @@ const buildBookHref = (template: string, bookId: string) =>
 
 export function BookSidebar({ bookId }: { bookId: string }) {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(min-width: 768px)");
+    const handleChange = () => setIsOpen(media.matches);
+    handleChange();
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
 
   return (
     <aside className="w-full rounded-3xl border border-border bg-surface p-4 shadow-[var(--shadow-soft)] md:w-64">
-      <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-text-muted">
-        Navegação
-      </p>
-      <nav className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
+          Navegação
+        </p>
+        <button
+          type="button"
+          className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-text md:hidden"
+          onClick={() => setIsOpen((open) => !open)}
+          aria-expanded={isOpen}
+          aria-controls="book-sidebar-nav"
+        >
+          {isOpen ? "Fechar" : "Abrir"}
+        </button>
+      </div>
+      <nav
+        id="book-sidebar-nav"
+        className={cn("mt-4 flex flex-col gap-2", isOpen ? "flex" : "hidden md:flex")}
+      >
         {BOOK_NAV.map((item) => {
           const Icon = ICONS[item.icon];
           const href = buildBookHref(item.href, bookId);

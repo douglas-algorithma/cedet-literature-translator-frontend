@@ -1,15 +1,16 @@
 export type TranslationStatus =
-  | "pendente"
-  | "em_traducao"
-  | "em_revisao"
-  | "aprovado"
-  | "erro";
+  | "pending"
+  | "translating"
+  | "review"
+  | "approved"
+  | "error";
 
 export type AgentAnalysis = {
   glossary?: string[];
   semanticScore?: number;
   styleScore?: number;
   consistencyWarnings?: string[];
+  notes?: string[];
 };
 
 export type TranslationReview = {
@@ -17,4 +18,11 @@ export type TranslationReview = {
   translation: string;
   analysis?: AgentAnalysis;
   suggestions?: string[];
+};
+
+export type TranslationProgress = {
+  progress?: number;
+  currentAgent?: string;
+  message?: string;
+  error?: string;
 };

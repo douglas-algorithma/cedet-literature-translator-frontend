@@ -8,6 +8,11 @@ export type TranslationRequestPayload = {
   sourceLanguage: string;
   targetLanguage: string;
   originalText: string;
+  threadId?: string;
+  previousTranslated?: string;
+  specificConcerns?: string;
+  context?: string;
+  glossaryEntries?: string;
 };
 
 export type TranslationResult = {
@@ -42,6 +47,11 @@ export const translationService = {
         source_language: payload.sourceLanguage,
         target_language: payload.targetLanguage,
         original_text: payload.originalText,
+        thread_id: payload.threadId,
+        previous_translated: payload.previousTranslated,
+        specific_concerns: payload.specificConcerns,
+        context: payload.context,
+        glossary_entries: payload.glossaryEntries,
       }),
     );
 
@@ -52,5 +62,15 @@ export const translationService = {
       translatedText: data.translated_text,
       agentOutputs: data.agent_outputs,
     } satisfies TranslationResult;
+  },
+  refineParagraph: async (
+    payload: TranslationRequestPayload & {
+      feedback: string;
+    },
+  ) => {
+    return translationService.translateParagraph({
+      ...payload,
+      specificConcerns: payload.feedback,
+    });
   },
 };
