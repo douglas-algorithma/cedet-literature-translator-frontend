@@ -1,6 +1,15 @@
 import { create } from "zustand";
 
+import { glossaryService } from "@/services/glossaryService";
 import type { GlossarySuggestion, GlossaryTerm } from "@/types/glossary";
+
+/**
+ * Build a suggestion id set from a list.
+ *
+ * @param terms - Suggestion list.
+ * @returns Set of suggestion identifiers.
+ */
+const buildSuggestionIdSet = (terms: GlossarySuggestion[]) => new Set(terms.map((term) => term.id));
 
 type GlossaryStore = {
   terms: GlossaryTerm[];
@@ -8,12 +17,15 @@ type GlossaryStore = {
   appliedTerms: Map<string, GlossaryTerm[]>;
   isLoading: boolean;
   fetchTerms: (bookId: string) => Promise<void>;
+  fetchSuggestions: (bookId: string) => Promise<void>;
   addTerm: (term: GlossaryTerm) => void;
   updateTerm: (term: GlossaryTerm) => void;
   deleteTerm: (id: string) => void;
   addPendingTerm: (term: GlossarySuggestion) => void;
-  approvePendingTerm: (term: GlossarySuggestion) => void;
-  rejectPendingTerm: (term: GlossarySuggestion) => void;
+  approvePendingTerm: (term: GlossarySuggestion) => Promise<void>;
+  approvePendingTerms: (terms: GlossarySuggestion[]) => Promise<void>;
+  rejectPendingTerm: (term: GlossarySuggestion) => Promise<void>;
+  rejectPendingTerms: (terms: GlossarySuggestion[]) => Promise<void>;
 };
 
 export const useGlossaryStore = create<GlossaryStore>((set) => ({
@@ -32,16 +44,55 @@ export const useGlossaryStore = create<GlossaryStore>((set) => ({
     })),
   deleteTerm: (id) =>
     set((state) => ({ terms: state.terms.filter((item) => item.id !== id) })),
+  fetchSuggestions: async (bookId: string) => {
+    set({ isLoading: true });
+    try {
+      const suggestions = await glossaryService.listSuggestions(bookId);
+      set({ pendingTerms: suggestions, isLoading: false });
+    } catch {
+      set({ isLoading: false });
+    }
+  },
   addPendingTerm: (term) =>
+    set((state) => {
+      const exists = state.pendingTerms.some((item) => item.id === term.id);
+      if (exists) return state;
+      return { pendingTerms: [...state.pendingTerms, term] };
+    }),
+  approvePendingTerm: async (term) => {
+    await glossaryService.approveSuggestion(term.id);
     set((state) => ({
-      pendingTerms: [...state.pendingTerms.filter((item) => item.term !== term.term), term],
-    })),
-  approvePendingTerm: (term) =>
+      pendingTerms: state.pendingTerms.filter((item) => item.id !== term.id),
+    }));
+  },
+  /**
+   * Approve multiple pending suggestions.
+   *
+   * @param terms - Suggestions to approve.
+   */
+  approvePendingTerms: async (terms) => {
+    const ids = buildSuggestionIdSet(terms);
+    await glossaryService.approveSuggestions(Array.from(ids));
     set((state) => ({
-      pendingTerms: state.pendingTerms.filter((item) => item.term !== term.term),
-    })),
-  rejectPendingTerm: (term) =>
+      pendingTerms: state.pendingTerms.filter((item) => !ids.has(item.id)),
+    }));
+  },
+  rejectPendingTerm: async (term) => {
+    await glossaryService.rejectSuggestion(term.id);
     set((state) => ({
-      pendingTerms: state.pendingTerms.filter((item) => item.term !== term.term),
-    })),
+      pendingTerms: state.pendingTerms.filter((item) => item.id !== term.id),
+    }));
+  },
+  /**
+   * Reject multiple pending suggestions.
+   *
+   * @param terms - Suggestions to reject.
+   */
+  rejectPendingTerms: async (terms) => {
+    const ids = buildSuggestionIdSet(terms);
+    await glossaryService.rejectSuggestions(Array.from(ids));
+    set((state) => ({
+      pendingTerms: state.pendingTerms.filter((item) => !ids.has(item.id)),
+    }));
+  },
 }));

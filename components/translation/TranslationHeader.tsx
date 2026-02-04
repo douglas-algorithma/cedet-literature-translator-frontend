@@ -18,6 +18,8 @@ type TranslationHeaderProps = {
   progressValue: number;
   onTranslateAll: () => void;
   isTranslating?: boolean;
+  onGenerateGlossary?: () => void;
+  isGeneratingGlossary?: boolean;
   connectionStatus: "connected" | "reconnecting" | "offline" | "disabled";
   reconnectAttempts?: number;
 };
@@ -33,6 +35,8 @@ export function TranslationHeader({
   progressValue,
   onTranslateAll,
   isTranslating,
+  onGenerateGlossary,
+  isGeneratingGlossary,
   connectionStatus,
   reconnectAttempts,
 }: TranslationHeaderProps) {
@@ -58,6 +62,16 @@ export function TranslationHeader({
               onChange={(event) => onChapterChange(event.target.value)}
             />
           </div>
+          {onGenerateGlossary ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onGenerateGlossary}
+              loading={isGeneratingGlossary}
+            >
+              Gerar glossário
+            </Button>
+          ) : null}
           <Button type="button" onClick={onTranslateAll} loading={isTranslating}>
             Traduzir capítulo
           </Button>

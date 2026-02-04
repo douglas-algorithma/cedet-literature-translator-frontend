@@ -58,6 +58,7 @@ export default function TranslationEditorPage({
   const [activeParagraphId, setActiveParagraphId] = useState<string | null>(null);
   const [metaByParagraph, setMetaByParagraph] = useState<Record<string, TranslationMeta>>({});
   const [isBatchTranslating, setIsBatchTranslating] = useState(false);
+  const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
   const [activePanel, setActivePanel] = useState<"original" | "translation">("original");
 
   const {
@@ -72,7 +73,7 @@ export default function TranslationEditorPage({
     closeReview,
   } = useTranslationStore();
 
-  const { addPendingTerm } = useGlossaryStore();
+  const { addPendingTerm, fetchSuggestions } = useGlossaryStore();
 
   const { data: book, isLoading: bookLoading } = useQuery({
     queryKey: ["book", bookId],
@@ -300,6 +301,29 @@ export default function TranslationEditorPage({
     closeReview();
   }, [closeReview]);
 
+  const handleGenerateGlossary = useCallback(async () => {
+    if (!chapterId || !bookId) return;
+    setIsGeneratingGlossary(true);
+    try {
+      const suggestions = await glossaryService.generateSuggestions(chapterId);
+      suggestions.forEach((suggestion) => addPendingTerm(suggestion));
+      await fetchSuggestions(bookId);
+      toast.success(
+        `${suggestions.length} sugestão(ões) de glossário gerada(s)`,
+        {
+          action: {
+            label: "Ver glossário",
+            onClick: () => router.push(`/books/${bookId}/glossary`),
+          },
+        },
+      );
+    } catch (error) {
+      toast.error((error as Error).message ?? "Erro ao gerar sugestões de glossário");
+    } finally {
+      setIsGeneratingGlossary(false);
+    }
+  }, [chapterId, bookId, addPendingTerm, fetchSuggestions, router]);
+
   const focusParagraph = useCallback(
     (paragraphId: string) => {
       setActiveParagraphId(paragraphId);
@@ -436,6 +460,8 @@ export default function TranslationEditorPage({
         progressValue={progressValue}
         onTranslateAll={handleTranslateAll}
         isTranslating={isBatchTranslating}
+        onGenerateGlossary={handleGenerateGlossary}
+        isGeneratingGlossary={isGeneratingGlossary}
         connectionStatus={connectionStatus}
         reconnectAttempts={reconnectAttempts}
       />

@@ -1,4 +1,4 @@
-import type { GlossaryTerm } from "@/types/glossary";
+import type { GlossarySuggestion, GlossaryTerm } from "@/types/glossary";
 
 import { apiClient } from "@/lib/api";
 import { parseGlossaryContext, serializeGlossaryContext } from "@/lib/utils/glossary";
@@ -9,6 +9,18 @@ type GlossaryApi = {
   source_term: string;
   target_term: string;
   context: string;
+  created_at: string;
+};
+
+type GlossarySuggestionApi = {
+  id: string;
+  book_id: string;
+  chapter_id: string;
+  source_term: string;
+  suggested_translation: string;
+  context: string;
+  category?: string | null;
+  confidence: number;
   created_at: string;
 };
 
@@ -35,6 +47,52 @@ const mapTerm = (term: GlossaryApi): GlossaryTerm => ({
   targetTerm: term.target_term,
   createdAt: term.created_at,
 });
+
+/**
+ * Map glossary suggestion API payload to UI model.
+ *
+ * @param suggestion - Glossary suggestion payload.
+ * @returns GlossarySuggestion mapped object.
+ */
+const mapSuggestion = (suggestion: GlossarySuggestionApi): GlossarySuggestion => ({
+  id: suggestion.id,
+  bookId: suggestion.book_id,
+  chapterId: suggestion.chapter_id,
+  term: suggestion.source_term,
+  suggestedTranslation: suggestion.suggested_translation,
+  context: suggestion.context,
+  category: suggestion.category,
+  confidence: suggestion.confidence,
+  createdAt: suggestion.created_at,
+});
+
+/**
+ * Approve multiple glossary suggestions.
+ *
+ * @param suggestionIds - Suggestion identifiers.
+ * @returns Approved glossary terms.
+ */
+const approveSuggestions = async (suggestionIds: string[]) => {
+  if (suggestionIds.length === 0) {
+    return [];
+  }
+  const approved = await Promise.all(
+    suggestionIds.map((id) => glossaryService.approveSuggestion(id)),
+  );
+  return approved;
+};
+
+/**
+ * Reject multiple glossary suggestions.
+ *
+ * @param suggestionIds - Suggestion identifiers.
+ */
+const rejectSuggestions = async (suggestionIds: string[]) => {
+  if (suggestionIds.length === 0) {
+    return;
+  }
+  await Promise.all(suggestionIds.map((id) => glossaryService.rejectSuggestion(id)));
+};
 
 export const glossaryService = {
   list: async (bookId?: string) => {
@@ -82,4 +140,29 @@ export const glossaryService = {
     return mapTerm(data);
   },
   delete: async (id: string) => handleResponse<void>(await apiClient.delete(`/glossary/${id}`)),
+  listSuggestions: async (bookId: string) => {
+    const data = handleResponse<GlossarySuggestionApi[]>(
+      await apiClient.get(`/glossary/suggestions?book_id=${encodeURIComponent(bookId)}`),
+    );
+    return data.map(mapSuggestion);
+  },
+  generateSuggestions: async (chapterId: string) => {
+    const data = handleResponse<GlossarySuggestionApi[]>(
+      await apiClient.post(`/glossary/suggestions/chapters/${encodeURIComponent(chapterId)}`),
+    );
+    return data.map(mapSuggestion);
+  },
+  approveSuggestion: async (suggestionId: string) => {
+    const data = handleResponse<GlossaryApi>(
+      await apiClient.post(`/glossary/suggestions/${encodeURIComponent(suggestionId)}/approve`),
+    );
+    return mapTerm(data);
+  },
+  rejectSuggestion: async (suggestionId: string) => {
+    await handleResponse<void>(
+      await apiClient.delete(`/glossary/suggestions/${encodeURIComponent(suggestionId)}`),
+    );
+  },
+  approveSuggestions,
+  rejectSuggestions,
 };

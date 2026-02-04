@@ -11,8 +11,13 @@ export type GlossaryTerm = {
 };
 
 export type GlossarySuggestion = {
+  id: string;
+  bookId: string;
+  chapterId: string;
   term: string;
   suggestedTranslation: string;
-  context?: string;
-  paragraphId?: string;
+  context: string;
+  category?: string | null;
+  confidence: number;
+  createdAt: string;
 };

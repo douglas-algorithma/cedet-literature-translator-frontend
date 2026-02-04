@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
+import { Checkbox } from "@/components/common/Checkbox";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Input } from "@/components/common/Input";
@@ -31,12 +32,26 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCreating, setIsCreating] = useState(false);
   const [draftValues, setDraftValues] = useState<GlossaryTermFormValues | null>(null);
+  const [selectedPendingIds, setSelectedPendingIds] = useState<string[]>([]);
+  const [bulkRejectIds, setBulkRejectIds] = useState<string[]>([]);
 
-  const { pendingTerms, approvePendingTerm, rejectPendingTerm } = useGlossaryStore();
+  const {
+    pendingTerms,
+    approvePendingTerm,
+    approvePendingTerms,
+    rejectPendingTerm,
+    rejectPendingTerms,
+    fetchSuggestions,
+  } = useGlossaryStore();
 
   const { data: terms = [], isLoading, error, refetch } = useQuery({
     queryKey: ["glossary", bookId],
     queryFn: () => glossaryService.list(bookId),
+  });
+
+  useQuery({
+    queryKey: ["glossary-suggestions", bookId],
+    queryFn: () => fetchSuggestions(bookId),
   });
 
   const categories = useMemo(() => {
@@ -65,6 +80,21 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
     });
     return sorted;
   }, [category, debouncedSearch, sortDirection, sortKey, terms]);
+
+  const selectedPendingSet = useMemo(() => new Set(selectedPendingIds), [selectedPendingIds]);
+  const selectedPendingTerms = useMemo(
+    () => pendingTerms.filter((term) => selectedPendingSet.has(term.id)),
+    [pendingTerms, selectedPendingSet],
+  );
+  const hasPendingSelection = selectedPendingIds.length > 0;
+  const allPendingSelected =
+    pendingTerms.length > 0 && pendingTerms.every((term) => selectedPendingSet.has(term.id));
+
+  useEffect(() => {
+    setSelectedPendingIds((state) =>
+      state.filter((id) => pendingTerms.some((term) => term.id === id)),
+    );
+  }, [pendingTerms]);
 
   const toggleSort = (key: typeof sortKey) => {
     if (key === sortKey) {
@@ -128,17 +158,125 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
   const handleApprovePending = async (term: typeof pendingTerms[number]) => {
     setSaving(true);
     try {
-      await glossaryService.create({
-        bookId,
-        sourceTerm: term.term,
-        targetTerm: term.suggestedTranslation,
-        context: term.context ?? "",
-      });
-      approvePendingTerm(term);
+      await approvePendingTerm(term);
       toast.success("Sugestão aprovada");
       await refetch();
     } catch (err) {
       toast.error((err as Error).message ?? "Não foi possível aprovar a sugestão");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRejectPending = async (term: typeof pendingTerms[number]) => {
+    setSaving(true);
+    try {
+      await rejectPendingTerm(term);
+      toast.success("Sugestão rejeitada");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Não foi possível rejeitar a sugestão");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Toggle selection state for a pending suggestion.
+   *
+   * @param id - Pending term identifier.
+   * @param checked - New selection state.
+   */
+  const handleTogglePendingSelection = (id: string, checked: boolean) => {
+    setSelectedPendingIds((state) => {
+      if (checked) {
+        return state.includes(id) ? state : [...state, id];
+      }
+      return state.filter((value) => value !== id);
+    });
+  };
+
+  /**
+   * Select all pending suggestions.
+   */
+  const handleSelectAllPending = () => {
+    setSelectedPendingIds(pendingTerms.map((term) => term.id));
+  };
+
+  /**
+   * Clear pending selection.
+   */
+  const handleClearPendingSelection = () => {
+    setSelectedPendingIds([]);
+  };
+
+  /**
+   * Approve all currently selected suggestions.
+   */
+  const handleApproveSelected = async () => {
+    if (selectedPendingTerms.length === 0) {
+      return;
+    }
+    setSaving(true);
+    try {
+      await approvePendingTerms(selectedPendingTerms);
+      toast.success("Sugestões aprovadas");
+      setSelectedPendingIds([]);
+      await refetch();
+    } catch (err) {
+      toast.error((err as Error).message ?? "Não foi possível aprovar as sugestões");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Approve all pending suggestions.
+   */
+  const handleApproveAllPending = async () => {
+    if (pendingTerms.length === 0) {
+      return;
+    }
+    setSaving(true);
+    try {
+      await approvePendingTerms(pendingTerms);
+      toast.success("Sugestões aprovadas");
+      setSelectedPendingIds([]);
+      await refetch();
+    } catch (err) {
+      toast.error((err as Error).message ?? "Não foi possível aprovar as sugestões");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Open confirmation for bulk rejection.
+   *
+   * @param ids - Suggestion identifiers.
+   */
+  const handleRequestBulkReject = (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+    setBulkRejectIds(ids);
+  };
+
+  /**
+   * Confirm bulk rejection of suggestions.
+   */
+  const handleConfirmBulkReject = async () => {
+    if (bulkRejectIds.length === 0) {
+      return;
+    }
+    const termsToReject = pendingTerms.filter((term) => bulkRejectIds.includes(term.id));
+    setSaving(true);
+    try {
+      await rejectPendingTerms(termsToReject);
+      toast.success("Sugestões excluídas");
+      setSelectedPendingIds((state) => state.filter((id) => !bulkRejectIds.includes(id)));
+      setBulkRejectIds([]);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Não foi possível excluir as sugestões");
     } finally {
       setSaving(false);
     }
@@ -197,28 +335,95 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
 
       {showPending && pendingTerms.length > 0 ? (
         <div className="space-y-4 rounded-3xl border border-border bg-surface p-6 shadow-[var(--shadow-soft)]">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-base font-semibold text-text">Termos pendentes</h2>
               <p className="text-sm text-text-muted">
                 Sugestões recentes do sistema durante a tradução.
               </p>
             </div>
-            <Badge variant="warning">{pendingTerms.length} pendentes</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="warning">{pendingTerms.length} pendentes</Badge>
+              {hasPendingSelection ? (
+                <Badge variant="info">{selectedPendingTerms.length} selecionados</Badge>
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleSelectAllPending}
+                disabled={allPendingSelected}
+              >
+                Selecionar todos
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleClearPendingSelection}
+                disabled={!hasPendingSelection}
+              >
+                Limpar seleção
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleApproveSelected}
+                loading={saving}
+                disabled={!hasPendingSelection}
+              >
+                Aprovar selecionados
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleApproveAllPending}
+                loading={saving}
+                disabled={pendingTerms.length === 0}
+              >
+                Aprovar todos
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleRequestBulkReject(selectedPendingIds)}
+                loading={saving}
+                disabled={!hasPendingSelection}
+              >
+                Excluir selecionados
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleRequestBulkReject(pendingTerms.map((term) => term.id))}
+                loading={saving}
+                disabled={pendingTerms.length === 0}
+              >
+                Excluir todos
+              </Button>
+            </div>
           </div>
           <div className="space-y-3">
             {pendingTerms.map((term) => (
               <div
-                key={`${term.term}-${term.paragraphId ?? ""}`}
+                key={term.id}
                 className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-muted p-4 text-sm text-text md:flex-row md:items-center md:justify-between"
               >
-                <div className="space-y-1">
-                  <p className="font-semibold text-text">
-                    {term.term} → {term.suggestedTranslation}
-                  </p>
-                  {term.context ? (
-                    <p className="text-xs text-text-muted">{term.context}</p>
-                  ) : null}
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={selectedPendingSet.has(term.id)}
+                    onChange={(checked) => handleTogglePendingSelection(term.id, checked)}
+                  />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-text">
+                      {term.term} → {term.suggestedTranslation}
+                    </p>
+                    {term.context ? (
+                      <p className="text-xs text-text-muted">{term.context}</p>
+                    ) : null}
+                    {term.category ? (
+                      <Badge variant="info" className="mt-1">
+                        {term.category}
+                      </Badge>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={() => handleApprovePending(term)} loading={saving}>
@@ -232,7 +437,7 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
                         sourceTerm: term.term,
                         targetTerm: term.suggestedTranslation,
                         context: term.context ?? "",
-                        category: "",
+                        category: term.category ?? "",
                         caseSensitive: false,
                         wholeWord: false,
                       });
@@ -242,7 +447,7 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
                   >
                     Editar e aprovar
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => rejectPendingTerm(term)}>
+                  <Button size="sm" variant="ghost" onClick={() => handleRejectPending(term)}>
                     Rejeitar
                   </Button>
                 </div>
@@ -346,6 +551,20 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
         loading={saving}
         onConfirm={handleDeleteTerm}
         onClose={() => setDeleteTerm(null)}
+      />
+      <ConfirmDialog
+        open={bulkRejectIds.length > 0}
+        title={
+          bulkRejectIds.length === pendingTerms.length
+            ? "Excluir todos os termos pendentes"
+            : "Excluir termos pendentes"
+        }
+        description="Esta ação remove as sugestões selecionadas."
+        confirmText="Excluir"
+        isDanger
+        loading={saving}
+        onConfirm={handleConfirmBulkReject}
+        onClose={() => setBulkRejectIds([])}
       />
     </div>
   );
