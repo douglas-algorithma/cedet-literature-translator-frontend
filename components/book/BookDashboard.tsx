@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -99,11 +98,6 @@ export function BookDashboard() {
       <PageHeader
         title={PAGE_TITLES.dashboard}
         description="Acompanhe o andamento dos seus projetos e retome traduções em poucos cliques."
-        action={
-          <Link className={buttonStyles({})} href="/books/new">
-            Novo Livro
-          </Link>
-        }
       />
 
       <section className="grid gap-4 rounded-3xl border border-border bg-surface p-4 shadow-[var(--shadow-soft)] md:grid-cols-[2fr_1fr_1fr]">
@@ -153,11 +147,6 @@ export function BookDashboard() {
         <EmptyState
           title="Nenhum projeto encontrado"
           description="Crie o primeiro livro para começar a traduzir com IA."
-          action={
-            <Link className={buttonStyles({})} href="/books/new">
-              Criar projeto
-            </Link>
-          }
         />
       ) : (
         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
