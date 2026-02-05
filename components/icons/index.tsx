@@ -1,6 +1,6 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { ReactNode, SVGAttributes } from "react";
 
-const baseProps: HTMLAttributes<SVGElement> = {
+const baseProps: SVGAttributes<SVGElement> = {
   fill: "none",
   stroke: "currentColor",
   strokeLinecap: "round",

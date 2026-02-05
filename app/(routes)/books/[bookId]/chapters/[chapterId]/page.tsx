@@ -30,6 +30,7 @@ import { translationService } from "@/services/translationService";
 import { useGlossaryStore } from "@/stores/glossaryStore";
 import { useTranslationStore } from "@/stores/translationStore";
 import type { Paragraph } from "@/types/chapter";
+import type { GlossarySuggestion } from "@/types/glossary";
 import type { TranslationStatus } from "@/types/translation";
 
 type TranslationMeta = {
@@ -207,7 +208,7 @@ export default function TranslationEditorPage({
           [paragraph.id]: {
             threadId: result.threadId ?? meta?.threadId,
             agentOutputs: result.agentOutputs ?? meta?.agentOutputs,
-            lastTranslation: result.translatedText,
+            lastTranslation: result.translatedText ?? undefined,
           },
         }));
 
@@ -433,7 +434,17 @@ export default function TranslationEditorPage({
           context?: string;
           paragraphId?: string;
         };
-        addPendingTerm(payload);
+        const suggestion: GlossarySuggestion = {
+          id: `temp-${Date.now()}-${Math.random()}`,
+          bookId: bookId ?? "",
+          chapterId: chapterId ?? "",
+          term: payload.term,
+          suggestedTranslation: payload.suggestedTranslation,
+          context: payload.context ?? "",
+          confidence: 0.8,
+          createdAt: new Date().toISOString(),
+        };
+        addPendingTerm(suggestion);
       }
     },
   });

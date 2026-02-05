@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   DndContext,
+  DragEndEvent,
   PointerSensor,
   TouchSensor,
   closestCenter,
@@ -15,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -29,7 +30,7 @@ import { Textarea } from "@/components/common/Textarea";
 import { chapterMetaSchema, type ChapterMetaFormValues } from "@/lib/validation";
 import { segmentText } from "@/lib/utils";
 import { chaptersService } from "@/services/chaptersService";
-import type { ChapterPayload } from "@/types/chapter";
+import type { Chapter, ChapterPayload } from "@/types/chapter";
 
 const steps = ["Metadados", "Modo", "Conteúdo"];
 
@@ -125,6 +126,7 @@ function ParagraphSortable({
 
 export function NewChapterWizard({ bookId }: { bookId: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState<"paragraph" | "bulk" | null>(null);
   const [modeLocked, setModeLocked] = useState(false);
@@ -191,6 +193,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
           : undefined,
       };
       const chapter = await chaptersService.create(bookId, payload);
+      updateChaptersCache(chapter);
       setChapterId(chapter.id);
       setModeLocked(true);
       setStep(2);
@@ -209,10 +212,14 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     setParagraphs((current) => (current.length === 1 ? current : current.filter((p) => p.id !== id)));
   };
 
-  const handleParagraphDrag = (event: { active: { id: string }; over?: { id: string } }) => {
-    if (!event.over || event.active.id === event.over.id) return;
-    const oldIndex = paragraphs.findIndex((item) => item.id === event.active.id);
-    const newIndex = paragraphs.findIndex((item) => item.id === event.over?.id);
+  const handleParagraphDrag = (event: DragEndEvent) => {
+    if (!event.over) return;
+    const activeId = String(event.active.id);
+    const overId = String(event.over.id);
+    if (activeId === overId) return;
+    const oldIndex = paragraphs.findIndex((item) => item.id === activeId);
+    const newIndex = paragraphs.findIndex((item) => item.id === overId);
+    if (oldIndex === -1 || newIndex === -1) return;
     const next = [...paragraphs];
     const [moved] = next.splice(oldIndex, 1);
     next.splice(newIndex, 0, moved);
@@ -258,6 +265,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   };
 
   const handlePostSave = () => {
+    refreshChaptersCache();
     toast.success("Capítulo criado", {
       action: {
         label: "Ir para tradução",
@@ -270,6 +278,20 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
       },
     });
     router.push(`/books/${bookId}`);
+  };
+
+  const updateChaptersCache = (chapter: Chapter) => {
+    queryClient.setQueryData<Chapter[]>(["chapters", bookId], (current = []) => {
+      if (current.some((item) => item.id === chapter.id)) {
+        return current;
+      }
+      const next = [...current, chapter];
+      return next.sort((a, b) => a.number - b.number);
+    });
+  };
+
+  const refreshChaptersCache = () => {
+    queryClient.invalidateQueries({ queryKey: ["chapters", bookId] });
   };
 
   const renderStep = () => {
