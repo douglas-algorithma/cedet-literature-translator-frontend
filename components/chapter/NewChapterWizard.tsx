@@ -237,10 +237,12 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     setParagraphs(next);
   };
 
-  const handleBulkParagraphDrag = (event: { active: { id: string }; over?: { id: string } }) => {
-    if (!event.over || event.active.id === event.over.id) return;
-    const oldIndex = bulkParagraphs.findIndex((item) => item.id === event.active.id);
-    const newIndex = bulkParagraphs.findIndex((item) => item.id === event.over?.id);
+  const handleBulkParagraphDrag = (event: DragEndEvent) => {
+    const activeId = String(event.active.id);
+    const overId = event.over ? String(event.over.id) : undefined;
+    if (!overId || activeId === overId) return;
+    const oldIndex = bulkParagraphs.findIndex((item) => item.id === activeId);
+    const newIndex = bulkParagraphs.findIndex((item) => item.id === overId);
     const next = [...bulkParagraphs];
     const [moved] = next.splice(oldIndex, 1);
     next.splice(newIndex, 0, moved);
