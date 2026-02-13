@@ -533,13 +533,13 @@ export default function TranslationEditorPage({
           paragraphId?: string;
         };
         const suggestion: GlossarySuggestion = {
-          id: `ws-${Date.now()}-${payload.term}`,
-          bookId,
-          chapterId,
+          id: `ws-${Date.now()}-${Math.random()}`,
+          bookId: bookId ?? "",
+          chapterId: chapterId ?? "",
           term: payload.term,
           suggestedTranslation: payload.suggestedTranslation,
           context: payload.context ?? "",
-          confidence: 0,
+          confidence: 0.8,
           createdAt: new Date().toISOString(),
           category: null,
         };

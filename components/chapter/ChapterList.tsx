@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import {
   DndContext,
+  DragEndEvent,
   closestCenter,
   PointerSensor,
   TouchSensor,
@@ -86,10 +87,14 @@ export function ChapterList({ bookId }: { bookId: string }) {
     setChapters(data);
   }, [data]);
 
-  const handleDragEnd = async (event: { active: { id: string }; over?: { id: string } }) => {
-    if (!event.over || event.active.id === event.over.id) return;
-    const oldIndex = chapters.findIndex((item) => item.id === event.active.id);
-    const newIndex = chapters.findIndex((item) => item.id === event.over?.id);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    if (!event.over) return;
+    const activeId = String(event.active.id);
+    const overId = String(event.over.id);
+    if (activeId === overId) return;
+    const oldIndex = chapters.findIndex((item) => item.id === activeId);
+    const newIndex = chapters.findIndex((item) => item.id === overId);
+    if (oldIndex === -1 || newIndex === -1) return;
     const next = [...chapters];
     const [moved] = next.splice(oldIndex, 1);
     next.splice(newIndex, 0, moved);

@@ -2,7 +2,8 @@ import type { Chapter } from "@/types/chapter";
 
 export const getChapterProgress = (chapter: Pick<Chapter, "translatedParagraphs" | "totalParagraphs">) => {
   if (!chapter.totalParagraphs) return 0;
-  return Math.round((chapter.translatedParagraphs / chapter.totalParagraphs) * 100);
+  const translated = chapter.translatedParagraphs ?? 0;
+  return Math.round((translated / chapter.totalParagraphs) * 100);
 };
 
 export const isChapterTranslated = (

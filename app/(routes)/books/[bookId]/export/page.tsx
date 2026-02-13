@@ -233,7 +233,11 @@ export default function ExportPage({ params }: { params: Promise<{ bookId: strin
           }),
         );
         if (options.includeEpigraphs && chapter.epigraph?.text) {
-          docParagraphs.push(new Paragraph({ text: `"${chapter.epigraph.text}"`, italics: true }));
+          docParagraphs.push(
+            new Paragraph({
+              children: [new TextRun({ text: `"${chapter.epigraph.text}"`, italics: true })],
+            }),
+          );
           if (chapter.epigraph.author) {
             docParagraphs.push(new Paragraph({ text: `— ${chapter.epigraph.author}` }));
           }
