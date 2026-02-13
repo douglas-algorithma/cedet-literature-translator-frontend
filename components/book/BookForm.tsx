@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/common/Button";
@@ -51,6 +51,7 @@ export function BookForm({
   });
 
   const genreSelection = useWatch({ control, name: "genre" }) ?? [];
+  const [customGenre, setCustomGenre] = useState("");
 
   const languageOptions = LANGUAGE_OPTIONS.map((language) => ({
     label: language,
@@ -63,6 +64,17 @@ export function BookForm({
       ? genreSelection.filter((item) => item !== value)
       : [...genreSelection, value];
     setValue("genre", next, { shouldValidate: true });
+  };
+
+  const addCustomGenre = () => {
+    const normalized = customGenre.trim();
+    if (!normalized) return;
+    if (genreSelection.includes(normalized)) {
+      setCustomGenre("");
+      return;
+    }
+    setValue("genre", [...genreSelection, normalized], { shouldValidate: true });
+    setCustomGenre("");
   };
 
   return (
@@ -130,6 +142,16 @@ export function BookForm({
               </button>
             );
           })}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Input
+            value={customGenre}
+            onChange={(event) => setCustomGenre(event.target.value)}
+            placeholder="Adicionar categoria personalizada"
+          />
+          <Button type="button" variant="outline" onClick={addCustomGenre}>
+            Adicionar
+          </Button>
         </div>
       </div>
 

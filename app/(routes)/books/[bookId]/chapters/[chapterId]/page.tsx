@@ -30,6 +30,7 @@ import { translationService } from "@/services/translationService";
 import { useGlossaryStore } from "@/stores/glossaryStore";
 import { useTranslationStore } from "@/stores/translationStore";
 import type { Paragraph } from "@/types/chapter";
+import type { GlossarySuggestion } from "@/types/glossary";
 import type { TranslationStatus } from "@/types/translation";
 
 type TranslationMeta = {
@@ -173,6 +174,8 @@ export default function TranslationEditorPage({
 
       try {
         const meta = metaByParagraph[paragraph.id];
+        const resolvedGenre =
+          book.primaryCategory ?? (book.genre?.length ? book.genre.join(", ") : undefined);
         const result = feedback
           ? await translationService.refineParagraph({
               bookId: book.id,
@@ -184,6 +187,9 @@ export default function TranslationEditorPage({
               originalText: paragraph.original,
               threadId: meta?.threadId,
               previousTranslated: meta?.lastTranslation ?? paragraph.translation,
+              genre: resolvedGenre,
+              context: book.description,
+              styleNotes: book.translationNotes,
               feedback,
             })
           : await translationService.translateParagraph({
@@ -194,9 +200,13 @@ export default function TranslationEditorPage({
               sourceLanguage: book.sourceLanguage,
               targetLanguage: book.targetLanguage,
               originalText: paragraph.original,
+              genre: resolvedGenre,
+              context: book.description,
+              styleNotes: book.translationNotes,
             });
 
-        if (!result.translatedText) {
+        const translatedText = result.translatedText;
+        if (!translatedText) {
           toast.error("A tradução não retornou texto.");
           setError(paragraph.id, "Sem conteúdo traduzido.");
           return;
@@ -207,15 +217,15 @@ export default function TranslationEditorPage({
           [paragraph.id]: {
             threadId: result.threadId ?? meta?.threadId,
             agentOutputs: result.agentOutputs ?? meta?.agentOutputs,
-            lastTranslation: result.translatedText,
+            lastTranslation: translatedText,
           },
         }));
 
         setProgress(paragraph.id, { progress: 100, currentAgent: "Concluído" });
-        setReviewData(buildReview({ paragraphId: paragraph.id, translation: result.translatedText, agentOutputs: result.agentOutputs }));
+        setReviewData(buildReview({ paragraphId: paragraph.id, translation: translatedText, agentOutputs: result.agentOutputs }));
 
         await chaptersService.updateParagraph(paragraph.id, {
-          translatedText: result.translatedText,
+          translatedText,
           status: "translated",
         });
 
@@ -249,6 +259,95 @@ export default function TranslationEditorPage({
       }
     },
     [closeReview, refetch, setStatus],
+  );
+
+  const handleEditOriginal = useCallback(
+    async (paragraph: Paragraph) => {
+      const draft = window.prompt("Editar parágrafo original:", paragraph.original);
+      if (draft === null) return;
+      const normalized = draft.trim();
+      if (!normalized) {
+        toast.error("O parágrafo original não pode ficar vazio.");
+        return;
+      }
+      const hadTranslation = Boolean(paragraph.translation?.trim());
+      if (
+        hadTranslation &&
+        !window.confirm(
+          "Este parágrafo já possui tradução. Ao editar o original, a tradução atual será removida. Deseja continuar?",
+        )
+      ) {
+        return;
+      }
+      try {
+        await chaptersService.updateParagraph(paragraph.id, {
+          originalText: normalized,
+          translatedText: hadTranslation ? null : undefined,
+          status: hadTranslation ? "pending" : paragraph.status,
+        });
+        if (hadTranslation) {
+          setStatus(paragraph.id, "pending");
+          setMetaByParagraph((state) => {
+            const next = { ...state };
+            delete next[paragraph.id];
+            return next;
+          });
+        }
+        toast.success("Parágrafo atualizado.");
+        await refetch();
+      } catch (error) {
+        toast.error((error as Error).message ?? "Erro ao atualizar parágrafo");
+      }
+    },
+    [refetch, setStatus],
+  );
+
+  const handleDeleteOriginal = useCallback(
+    async (paragraph: Paragraph) => {
+      const confirm = window.confirm("Excluir este parágrafo?");
+      if (!confirm) return;
+      try {
+        await chaptersService.deleteParagraph(paragraph.id);
+        setMetaByParagraph((state) => {
+          const next = { ...state };
+          delete next[paragraph.id];
+          return next;
+        });
+        toast.success("Parágrafo excluído.");
+        await refetch();
+      } catch (error) {
+        toast.error((error as Error).message ?? "Erro ao excluir parágrafo");
+      }
+    },
+    [refetch],
+  );
+
+  const handleMoveParagraph = useCallback(
+    async (paragraphId: string, direction: "up" | "down") => {
+      const currentIndex = paragraphs.findIndex((paragraph) => paragraph.id === paragraphId);
+      if (currentIndex < 0) return;
+      const targetIndex =
+        direction === "up"
+          ? Math.max(0, currentIndex - 1)
+          : Math.min(paragraphs.length - 1, currentIndex + 1);
+      if (targetIndex === currentIndex) return;
+
+      const reordered = [...paragraphs];
+      const [moved] = reordered.splice(currentIndex, 1);
+      reordered.splice(targetIndex, 0, moved);
+
+      try {
+        await chaptersService.reorderParagraphs(
+          chapterId,
+          reordered.map((paragraph) => paragraph.id),
+        );
+        toast.success("Ordem dos parágrafos atualizada.");
+        await refetch();
+      } catch (error) {
+        toast.error((error as Error).message ?? "Erro ao reordenar parágrafos");
+      }
+    },
+    [chapterId, paragraphs, refetch],
   );
 
   const handleRefine = useCallback(
@@ -433,7 +532,18 @@ export default function TranslationEditorPage({
           context?: string;
           paragraphId?: string;
         };
-        addPendingTerm(payload);
+        const suggestion: GlossarySuggestion = {
+          id: `ws-${Date.now()}-${payload.term}`,
+          bookId,
+          chapterId,
+          term: payload.term,
+          suggestedTranslation: payload.suggestedTranslation,
+          context: payload.context ?? "",
+          confidence: 0,
+          createdAt: new Date().toISOString(),
+          category: null,
+        };
+        addPendingTerm(suggestion);
       }
     },
   });
@@ -515,7 +625,7 @@ export default function TranslationEditorPage({
                   <p className="mt-2 text-xs not-italic text-text-muted">— {chapter.epigraph.author}</p>
                 </div>
               ) : null}
-              {paragraphs.map((paragraph) => (
+              {paragraphs.map((paragraph, paragraphListIndex) => (
                 <ParagraphOriginalCard
                   key={paragraph.id}
                   index={paragraph.index}
@@ -528,6 +638,18 @@ export default function TranslationEditorPage({
                   isActive={activeParagraphId === paragraph.id}
                   onTranslate={() => handleTranslateParagraph(paragraph)}
                   onFocus={() => focusParagraph(paragraph.id)}
+                  onEditOriginal={() => handleEditOriginal(paragraph)}
+                  onDelete={() => handleDeleteOriginal(paragraph)}
+                  onMoveUp={
+                    paragraphListIndex > 0
+                      ? () => handleMoveParagraph(paragraph.id, "up")
+                      : undefined
+                  }
+                  onMoveDown={
+                    paragraphListIndex < paragraphs.length - 1
+                      ? () => handleMoveParagraph(paragraph.id, "down")
+                      : undefined
+                  }
                   dataParagraphId={paragraph.id}
                 />
               ))}

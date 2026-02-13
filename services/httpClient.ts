@@ -155,6 +155,14 @@ export const apiClient = {
       body: body ? JSON.stringify(body) : undefined,
       ...config,
     }),
+  patch: <T>(url: string, body?: unknown, config?: RequestInit) =>
+    requestWithRetry<T>({
+      url,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      ...config,
+    }),
   delete: <T>(url: string, config?: RequestInit) =>
     requestWithRetry<T>({ url, method: "DELETE", ...config }),
 };

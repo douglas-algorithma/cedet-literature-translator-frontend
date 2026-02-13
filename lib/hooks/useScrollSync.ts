@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 
 type ScrollSyncOptions = {
   enabled: boolean;
-  leftRef: React.RefObject<HTMLElement>;
-  rightRef: React.RefObject<HTMLElement>;
+  leftRef: React.RefObject<HTMLElement | null>;
+  rightRef: React.RefObject<HTMLElement | null>;
 };
 
 export const useScrollSync = ({ enabled, leftRef, rightRef }: ScrollSyncOptions) => {

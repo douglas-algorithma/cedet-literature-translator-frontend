@@ -10,6 +10,10 @@ export type TranslationRequestPayload = {
   originalText: string;
   threadId?: string;
   previousTranslated?: string;
+  genre?: string;
+  formality?: string;
+  styleNotes?: string;
+  tone?: string;
   specificConcerns?: string;
   context?: string;
   glossaryEntries?: string;
@@ -49,6 +53,10 @@ export const translationService = {
         original_text: payload.originalText,
         thread_id: payload.threadId,
         previous_translated: payload.previousTranslated,
+        genre: payload.genre,
+        formality: payload.formality,
+        style_notes: payload.styleNotes,
+        tone: payload.tone,
         specific_concerns: payload.specificConcerns,
         context: payload.context,
         glossary_entries: payload.glossaryEntries,

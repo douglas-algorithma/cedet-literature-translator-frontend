@@ -51,6 +51,11 @@ export function BookCard({ book, onDeleted }: BookCardProps) {
           <span>{formatBookLanguages(book)}</span>
           <span>{chapters}</span>
         </div>
+        {book.genre?.length ? (
+          <p className="text-xs text-text-muted">
+            Categorias: {book.genre.slice(0, 3).join(", ")}
+          </p>
+        ) : null}
         <div>
           <ProgressBar value={progress} />
           <div className="mt-2 flex items-center justify-between text-xs text-text-muted">

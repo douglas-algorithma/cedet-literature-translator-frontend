@@ -15,6 +15,7 @@ export type Book = {
   createdAt: string;
   description?: string;
   genre?: string[];
+  primaryCategory?: string;
   translationNotes?: string;
 };
 

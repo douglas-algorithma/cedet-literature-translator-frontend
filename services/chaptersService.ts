@@ -1,7 +1,7 @@
 import type { Chapter, ChapterPayload, Paragraph } from "@/types/chapter";
 
 import { apiClient } from "@/lib/api";
-import { parseEpigraph, segmentText, serializeEpigraph } from "@/lib/utils";
+import { parseEpigraph, serializeEpigraph } from "@/lib/utils";
 
 type ChapterApi = {
   id: string;
@@ -23,6 +23,14 @@ type ParagraphApi = {
   status: string;
   created_at: string;
   updated_at: string;
+};
+
+type ParagraphParsePreviewApi = {
+  segments: Array<{
+    index: number;
+    original_text: string;
+    block_type: "paragraph" | "bullet";
+  }>;
 };
 
 const handleResponse = <T>(response: { success: boolean; data?: T; error?: { message: string } }) => {
@@ -135,13 +143,19 @@ export const chaptersService = {
   },
   updateParagraph: async (
     paragraphId: string,
-    payload: { translatedText?: string; status?: Paragraph["status"]; originalText?: string },
+    payload: {
+      translatedText?: string | null;
+      status?: Paragraph["status"];
+      originalText?: string;
+      order?: number;
+    },
   ) => {
     const data = handleResponse<ParagraphApi>(
       await apiClient.put(`/paragraphs/${encodeURIComponent(paragraphId)}`, {
         translated_text: payload.translatedText,
         status: payload.status,
         original_text: payload.originalText,
+        order: payload.order,
       }),
     );
     return mapParagraph(data);
@@ -155,10 +169,45 @@ export const chaptersService = {
     );
     return mapParagraph(data);
   },
-  bulkInsert: async (chapterId: string, text: string) => {
-    const paragraphs = segmentText(text);
-    for (let i = 0; i < paragraphs.length; i += 1) {
-      await chaptersService.addParagraph(chapterId, paragraphs[i], i + 1);
-    }
+  deleteParagraph: async (paragraphId: string) => {
+    await handleResponse<void>(
+      await apiClient.delete(`/paragraphs/${encodeURIComponent(paragraphId)}`),
+    );
+  },
+  parseParagraphPreview: async (text: string) => {
+    const data = handleResponse<ParagraphParsePreviewApi>(
+      await apiClient.post("/paragraphs/parse-preview", { text }),
+    );
+    return data.segments.map((segment) => ({
+      index: segment.index,
+      text: segment.original_text,
+      blockType: segment.block_type,
+    }));
+  },
+  bulkInsert: async (
+    chapterId: string,
+    paragraphs: Array<{ text: string; blockType?: "paragraph" | "bullet" }>,
+  ) => {
+    const data = handleResponse<ParagraphApi[]>(
+      await apiClient.post(`/paragraphs/chapters/${encodeURIComponent(chapterId)}/bulk`, {
+        items: paragraphs.map((paragraph, index) => ({
+          order: index + 1,
+          original_text: paragraph.text,
+          block_type: paragraph.blockType ?? "paragraph",
+        })),
+      }),
+    );
+    return data.map(mapParagraph);
+  },
+  reorderParagraphs: async (chapterId: string, paragraphIdsInOrder: string[]) => {
+    const data = handleResponse<ParagraphApi[]>(
+      await apiClient.patch(`/paragraphs/chapters/${encodeURIComponent(chapterId)}/reorder`, {
+        items: paragraphIdsInOrder.map((id, index) => ({
+          id,
+          order: index + 1,
+        })),
+      }),
+    );
+    return data.map(mapParagraph);
   },
 };

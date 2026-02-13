@@ -153,6 +153,16 @@ export function BookDetails({ bookId }: { bookId: string }) {
           </span>
           <span>Última atividade: {formatDate(book.updatedAt)}</span>
         </div>
+        {book.genre?.length ? (
+          <p className="text-sm text-text-muted">
+            Categorias: {book.genre.join(", ")}
+          </p>
+        ) : null}
+        {book.translationNotes ? (
+          <p className="text-sm text-text-muted">
+            Notas de tradução: {book.translationNotes}
+          </p>
+        ) : null}
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">

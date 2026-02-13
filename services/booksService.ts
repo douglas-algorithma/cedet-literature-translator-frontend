@@ -10,6 +10,10 @@ type BookApi = {
   author: string;
   source_language: string;
   target_language: string;
+  description?: string | null;
+  categories?: string[] | null;
+  primary_category?: string | null;
+  translation_notes?: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -28,6 +32,10 @@ const mapBook = (book: BookApi): Book => ({
   author: book.author,
   sourceLanguage: book.source_language,
   targetLanguage: book.target_language,
+  description: book.description ?? undefined,
+  genre: book.categories ?? [],
+  primaryCategory: book.primary_category ?? undefined,
+  translationNotes: book.translation_notes ?? undefined,
   status: book.status as Book["status"],
   createdAt: book.created_at,
   updatedAt: book.updated_at,
@@ -38,6 +46,10 @@ const toBookCreatePayload = (payload: BookPayload) => ({
   author: payload.author,
   source_language: payload.sourceLanguage,
   target_language: payload.targetLanguage,
+  description: payload.description,
+  categories: payload.genre ?? [],
+  primary_category: payload.primaryCategory ?? payload.genre?.[0],
+  translation_notes: payload.translationNotes,
 });
 
 const toBookUpdatePayload = (payload: BookPayload) => ({
@@ -45,6 +57,10 @@ const toBookUpdatePayload = (payload: BookPayload) => ({
   author: payload.author,
   source_language: payload.sourceLanguage,
   target_language: payload.targetLanguage,
+  description: payload.description,
+  categories: payload.genre ?? [],
+  primary_category: payload.primaryCategory ?? payload.genre?.[0],
+  translation_notes: payload.translationNotes,
   status: payload.status,
 });
 
