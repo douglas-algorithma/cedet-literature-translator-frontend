@@ -1,5 +1,19 @@
 import { apiClient } from "@/lib/api";
 
+export type TranslationFeedbackItemPayload = {
+  feedbackId?: string;
+  type?:
+    | "CORRECTION"
+    | "PREFERENCE"
+    | "CLARIFICATION"
+    | "TERMINOLOGY"
+    | "REWRITE"
+    | "ACCEPT_ALTERNATIVE"
+    | "CUSTOM";
+  issue: string;
+  notes?: string;
+};
+
 export type TranslationRequestPayload = {
   bookId: string;
   bookTitle?: string;
@@ -17,6 +31,7 @@ export type TranslationRequestPayload = {
   specificConcerns?: string;
   context?: string;
   glossaryEntries?: string;
+  feedbackItems?: TranslationFeedbackItemPayload[];
 };
 
 export type TranslationResult = {
@@ -60,6 +75,12 @@ export const translationService = {
         specific_concerns: payload.specificConcerns,
         context: payload.context,
         glossary_entries: payload.glossaryEntries,
+        feedback_items: payload.feedbackItems?.map((item) => ({
+          feedback_id: item.feedbackId ?? `feedback-${Date.now()}`,
+          type: item.type ?? "CUSTOM",
+          issue: item.issue,
+          notes: item.notes ?? "",
+        })),
       }),
     );
 
@@ -78,7 +99,12 @@ export const translationService = {
   ) => {
     return translationService.translateParagraph({
       ...payload,
-      specificConcerns: payload.feedback,
+      feedbackItems: [
+        {
+          type: "CUSTOM",
+          issue: payload.feedback,
+        },
+      ],
     });
   },
 };

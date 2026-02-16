@@ -135,6 +135,18 @@ export default function TranslationEditorPage({
     }, {});
   }, [glossaryTerms, paragraphs]);
 
+  const serializedGlossaryEntries = useMemo(() => {
+    if (!glossaryTerms.length) {
+      return undefined;
+    }
+    const entries = glossaryTerms.map((term) => ({
+      source_term: term.sourceTerm,
+      target_term: term.targetTerm,
+      context: term.context ?? "",
+    }));
+    return JSON.stringify(entries);
+  }, [glossaryTerms]);
+
   const chapterOptions = useMemo(
     () =>
       chapters.map((item) => ({
@@ -191,6 +203,7 @@ export default function TranslationEditorPage({
               context: book.description,
               styleNotes: book.translationNotes,
               feedback,
+              glossaryEntries: serializedGlossaryEntries,
             })
           : await translationService.translateParagraph({
               bookId: book.id,
@@ -203,6 +216,7 @@ export default function TranslationEditorPage({
               genre: resolvedGenre,
               context: book.description,
               styleNotes: book.translationNotes,
+              glossaryEntries: serializedGlossaryEntries,
             });
 
         const translatedText = result.translatedText;
@@ -236,7 +250,17 @@ export default function TranslationEditorPage({
         toast.error((error as Error).message ?? "Erro ao traduzir parágrafo");
       }
     },
-    [book, chapter, metaByParagraph, refetch, setError, setProgress, setReviewData, setStatus],
+    [
+      book,
+      chapter,
+      metaByParagraph,
+      refetch,
+      serializedGlossaryEntries,
+      setError,
+      setProgress,
+      setReviewData,
+      setStatus,
+    ],
   );
 
   const handleApprove = useCallback(

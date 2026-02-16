@@ -24,7 +24,7 @@ export const addResponseInterceptor = (interceptor: ResponseInterceptor) => {
   responseInterceptors.push(interceptor);
 };
 
-const getBaseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "";
+const getBaseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "/backend-api";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
