@@ -96,7 +96,7 @@ export function ParagraphTranslationCard({
 
       {status === "pending" && onTranslate ? (
         <div className="mt-3">
-          <Button size="sm" variant="outline" onClick={onTranslate}>
+          <Button size="sm" variant="outline" className="min-h-10" onClick={onTranslate}>
             Traduzir
           </Button>
         </div>
@@ -104,7 +104,7 @@ export function ParagraphTranslationCard({
 
       {status === "error" && onRetry ? (
         <div className="mt-3">
-          <Button size="sm" variant="outline" onClick={onRetry}>
+          <Button size="sm" variant="outline" className="min-h-10" onClick={onRetry}>
             Tentar novamente
           </Button>
         </div>
@@ -112,13 +112,13 @@ export function ParagraphTranslationCard({
 
       {showActions ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button size="sm" onClick={onApprove}>
+          <Button size="sm" className="min-h-10" onClick={onApprove}>
             Aprovar
           </Button>
-          <Button size="sm" variant="secondary" onClick={onOpenReview}>
+          <Button size="sm" variant="secondary" className="min-h-10" onClick={onOpenReview}>
             Editar
           </Button>
-          <Button size="sm" variant="ghost" onClick={onRefine}>
+          <Button size="sm" variant="ghost" className="min-h-10" onClick={onRefine}>
             Refinamento
           </Button>
         </div>
@@ -126,7 +126,7 @@ export function ParagraphTranslationCard({
 
       {status === "approved" && onOpenReview ? (
         <div className="mt-4">
-          <Button size="sm" variant="ghost" onClick={onOpenReview}>
+          <Button size="sm" variant="ghost" className="min-h-10" onClick={onOpenReview}>
             Editar tradução
           </Button>
         </div>

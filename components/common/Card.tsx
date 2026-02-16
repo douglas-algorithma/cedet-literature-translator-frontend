@@ -6,7 +6,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "rounded-3xl border border-border bg-surface p-6 shadow-[var(--shadow-soft)]",
+        "rounded-3xl border border-border bg-surface p-4 shadow-[var(--shadow-soft)] sm:p-6",
         className,
       )}
       {...props}
@@ -33,5 +33,5 @@ export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivEleme
 }
 
 export function CardFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mt-6 flex items-center gap-3", className)} {...props} />;
+  return <div className={cn("mt-6 flex flex-wrap items-center gap-2 sm:gap-3", className)} {...props} />;
 }

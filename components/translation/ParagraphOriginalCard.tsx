@@ -46,13 +46,13 @@ export function ParagraphOriginalCard({
         if (event.key === "Enter") onFocus?.();
       }}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-semibold text-text-muted">Parágrafo {index}</p>
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-2">
           {onMoveUp ? (
             <button
               type="button"
-              className="rounded border border-border px-2 py-0.5 text-[11px] text-text-muted"
+              className="inline-flex min-h-8 items-center rounded border border-border px-2.5 py-1 text-xs text-text-muted"
               onClick={(event) => {
                 event.stopPropagation();
                 onMoveUp();
@@ -64,7 +64,7 @@ export function ParagraphOriginalCard({
           {onMoveDown ? (
             <button
               type="button"
-              className="rounded border border-border px-2 py-0.5 text-[11px] text-text-muted"
+              className="inline-flex min-h-8 items-center rounded border border-border px-2.5 py-1 text-xs text-text-muted"
               onClick={(event) => {
                 event.stopPropagation();
                 onMoveDown();
@@ -76,7 +76,7 @@ export function ParagraphOriginalCard({
           {onEditOriginal ? (
             <button
               type="button"
-              className="rounded border border-border px-2 py-0.5 text-[11px] text-brand"
+              className="inline-flex min-h-8 items-center rounded border border-border px-2.5 py-1 text-xs text-brand"
               onClick={(event) => {
                 event.stopPropagation();
                 onEditOriginal();
@@ -88,7 +88,7 @@ export function ParagraphOriginalCard({
           {onDelete ? (
             <button
               type="button"
-              className="rounded border border-border px-2 py-0.5 text-[11px] text-danger"
+              className="inline-flex min-h-8 items-center rounded border border-border px-2.5 py-1 text-xs text-danger"
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete();

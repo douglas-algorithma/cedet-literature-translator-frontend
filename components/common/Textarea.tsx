@@ -1,4 +1,5 @@
-import type { TextareaHTMLAttributes } from "react";
+import { useState } from "react";
+import type { ChangeEvent, TextareaHTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -20,15 +21,23 @@ export function Textarea({
   className,
   value,
   defaultValue,
+  onChange,
   ...props
 }: TextareaProps) {
   const helperText = error ?? hint;
-  const currentLength = typeof value === "string"
-    ? value.length
-    : typeof defaultValue === "string"
-      ? defaultValue.length
-      : 0;
+  const isControlled = typeof value === "string";
+  const [uncontrolledLength, setUncontrolledLength] = useState(
+    typeof value === "string" ? value.length : typeof defaultValue === "string" ? defaultValue.length : 0,
+  );
+  const currentLength = isControlled ? value.length : uncontrolledLength;
   const inputId = id ?? props.name;
+
+  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    if (!isControlled) {
+      setUncontrolledLength(event.target.value.length);
+    }
+    onChange?.(event);
+  };
 
   return (
     <label className="flex w-full flex-col gap-2 text-sm text-text">
@@ -51,6 +60,7 @@ export function Textarea({
         maxLength={maxLength}
         value={value}
         defaultValue={defaultValue}
+        onChange={handleChange}
         {...props}
       />
       {helperText ? (

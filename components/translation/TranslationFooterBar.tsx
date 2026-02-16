@@ -18,7 +18,7 @@ export function TranslationFooterBar({
   if (pendingReviewCount === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-6 z-20 mx-auto w-[min(960px,calc(100%-2rem))] rounded-3xl border border-border bg-surface/95 p-4 shadow-[var(--shadow-strong)] backdrop-blur">
+    <div className="fixed inset-x-0 bottom-4 z-20 mx-4 rounded-3xl border border-border bg-surface/95 p-4 shadow-[var(--shadow-strong)] backdrop-blur sm:bottom-6 sm:mx-auto sm:w-[min(960px,calc(100%-2rem))]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-text">

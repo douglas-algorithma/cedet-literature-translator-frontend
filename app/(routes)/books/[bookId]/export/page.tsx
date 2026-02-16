@@ -301,13 +301,13 @@ export default function ExportPage({ params }: { params: Promise<{ bookId: strin
       ) : null}
 
       <Card className="space-y-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {FORMAT_CARDS.map((card) => (
             <button
               key={card.value}
               type="button"
               onClick={() => setFormat(card.value)}
-              className={`flex min-w-[220px] flex-col rounded-2xl border px-4 py-3 text-left text-sm transition ${
+              className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left text-sm transition ${
                 format === card.value
                   ? "border-brand bg-brand-soft text-text"
                   : "border-border bg-surface text-text-muted hover:border-brand/40"
@@ -318,7 +318,7 @@ export default function ExportPage({ params }: { params: Promise<{ bookId: strin
             </button>
           ))}
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Checkbox
             checked={options.includeMetadata}
             onChange={(checked) => setOptions((state) => ({ ...state, includeMetadata: checked }))}

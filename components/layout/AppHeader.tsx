@@ -71,7 +71,7 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-surface/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
             <span className="text-lg font-bold">C</span>
@@ -84,14 +84,19 @@ export function AppHeader() {
         <nav className="hidden items-center gap-2 md:flex">
           {MAIN_NAV.map(renderNavItem)}
         </nav>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setShortcutsOpen(true)}>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden lg:inline-flex"
+            onClick={() => setShortcutsOpen(true)}
+          >
             Atalhos
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="hidden lg:inline-flex">
             Suporte
           </Button>
-          <Link className={buttonStyles({ size: "sm" })} href="/books/new">
+          <Link className={buttonStyles({ size: "sm", className: "hidden sm:inline-flex" })} href="/books/new">
             Novo Projeto
           </Link>
           <button
@@ -109,7 +114,7 @@ export function AppHeader() {
       {menuOpen ? (
         <div
           id="mobile-menu"
-          className="border-t border-border/60 bg-surface px-6 py-4 md:hidden"
+          className="border-t border-border/60 bg-surface px-4 py-4 sm:px-6 md:hidden"
         >
           <nav className="flex flex-col gap-2">
             {MAIN_NAV.map(renderNavItem)}

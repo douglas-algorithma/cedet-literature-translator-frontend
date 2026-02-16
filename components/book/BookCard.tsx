@@ -35,7 +35,7 @@ export function BookCard({ book, onDeleted }: BookCardProps) {
   const statusVariant = getStatusVariant(book.status);
 
   return (
-    <Card className="flex h-full min-h-[320px] flex-col">
+    <Card className="flex h-full min-h-[260px] flex-col md:min-h-[320px]">
       <CardHeader>
         <div>
           <CardTitle>{book.title}</CardTitle>

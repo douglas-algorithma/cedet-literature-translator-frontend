@@ -11,9 +11,8 @@ export const useScrollSync = ({ enabled, leftRef, rightRef }: ScrollSyncOptions)
 
   useEffect(() => {
     if (!enabled) return;
-    const left = leftRef.current;
-    const right = rightRef.current;
-    if (!left || !right) return;
+    let frameId: number | null = null;
+    let detach: (() => void) | null = null;
 
     const syncScroll = (source: HTMLElement, target: HTMLElement) => {
       if (isSyncing.current) return;
@@ -29,15 +28,31 @@ export const useScrollSync = ({ enabled, leftRef, rightRef }: ScrollSyncOptions)
       });
     };
 
-    const handleLeft = () => syncScroll(left, right);
-    const handleRight = () => syncScroll(right, left);
+    const tryAttach = () => {
+      const left = leftRef.current;
+      const right = rightRef.current;
+      if (!left || !right) {
+        frameId = requestAnimationFrame(tryAttach);
+        return;
+      }
 
-    left.addEventListener("scroll", handleLeft, { passive: true });
-    right.addEventListener("scroll", handleRight, { passive: true });
+      const handleLeft = () => syncScroll(left, right);
+      const handleRight = () => syncScroll(right, left);
+
+      left.addEventListener("scroll", handleLeft, { passive: true });
+      right.addEventListener("scroll", handleRight, { passive: true });
+      syncScroll(left, right);
+      detach = () => {
+        left.removeEventListener("scroll", handleLeft);
+        right.removeEventListener("scroll", handleRight);
+      };
+    };
+
+    tryAttach();
 
     return () => {
-      left.removeEventListener("scroll", handleLeft);
-      right.removeEventListener("scroll", handleRight);
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      detach?.();
     };
   }, [enabled, leftRef, rightRef]);
 };

@@ -75,7 +75,7 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <button
         type="button"
         className="absolute inset-0 h-full w-full bg-black/40"
@@ -90,8 +90,8 @@ export function Modal({
         tabIndex={-1}
         onKeyDown={handleTrapFocus}
         className={cn(
-          "relative w-full overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-strong)]",
-          fullScreenOnMobile && "max-h-[92vh] w-full md:max-h-none",
+          "relative w-full overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-strong)] sm:rounded-3xl",
+          fullScreenOnMobile && "h-[calc(100vh-1.5rem)] max-h-[calc(100vh-1.5rem)] sm:h-auto sm:max-h-none",
           size === "sm" && "max-w-md",
           size === "md" && "max-w-lg",
           size === "lg" && "max-w-2xl",
@@ -101,15 +101,22 @@ export function Modal({
         {title ? (
           <div
             id={titleId}
-            className="border-b border-border px-6 py-4 text-lg font-semibold text-text"
+            className="border-b border-border px-4 py-4 text-lg font-semibold text-text sm:px-6"
           >
             {title}
           </div>
         ) : null}
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-5 text-sm text-text md:max-h-[75vh]">
+        <div
+          className={cn(
+            "overflow-y-auto px-4 py-4 text-sm text-text sm:px-6 sm:py-5",
+            fullScreenOnMobile
+              ? "max-h-[calc(100vh-8.5rem)] sm:max-h-[75vh]"
+              : "max-h-[70vh] md:max-h-[75vh]",
+          )}
+        >
           {children}
         </div>
-        {footer ? <div className="border-t border-border px-6 py-4">{footer}</div> : null}
+        {footer ? <div className="border-t border-border px-4 py-4 sm:px-6">{footer}</div> : null}
       </div>
     </div>
   );

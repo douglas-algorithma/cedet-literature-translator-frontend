@@ -394,6 +394,20 @@ export default function TranslationEditorPage({
     [handleTranslateParagraph],
   );
 
+  const focusParagraph = useCallback((paragraphId: string) => {
+    setActiveParagraphId(paragraphId);
+    const selector = `[data-paragraph-id="${paragraphId}"]`;
+    const leftElement = leftPanelRef.current?.querySelector(selector);
+    const rightElement = rightPanelRef.current?.querySelector(selector);
+
+    if (leftElement instanceof HTMLElement) {
+      leftElement.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    if (rightElement instanceof HTMLElement) {
+      rightElement.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, []);
+
   const handleOpenReview = useCallback(
     (paragraph?: Paragraph) => {
       if (!paragraph || !paragraph.translation) {
@@ -409,10 +423,10 @@ export default function TranslationEditorPage({
           agentOutputs: meta?.agentOutputs,
         }),
       );
-      setActiveParagraphId(paragraph.id);
+      focusParagraph(paragraph.id);
       setActivePanel("translation");
     },
-    [metaByParagraph, openReview],
+    [focusParagraph, metaByParagraph, openReview],
   );
 
   const handleTranslateAll = useCallback(async () => {
@@ -462,17 +476,6 @@ export default function TranslationEditorPage({
       setIsGeneratingGlossary(false);
     }
   }, [chapterId, bookId, addPendingTerm, fetchSuggestions, router]);
-
-  const focusParagraph = useCallback(
-    (paragraphId: string) => {
-      setActiveParagraphId(paragraphId);
-      const element = document.querySelector(`[data-paragraph-id="${paragraphId}"]`);
-      if (element instanceof HTMLElement) {
-        element.scrollIntoView({ block: "center", behavior: "smooth" });
-      }
-    },
-    [],
-  );
 
   const moveSelection = useCallback(
     (direction: "up" | "down") => {
@@ -637,6 +640,7 @@ export default function TranslationEditorPage({
           <div className="flex gap-2 md:hidden">
             <Button
               size="sm"
+              className="flex-1"
               variant={activePanel === "original" ? "primary" : "secondary"}
               onClick={() => setActivePanel("original")}
             >
@@ -644,6 +648,7 @@ export default function TranslationEditorPage({
             </Button>
             <Button
               size="sm"
+              className="flex-1"
               variant={activePanel === "translation" ? "primary" : "secondary"}
               onClick={() => setActivePanel("translation")}
             >
@@ -653,7 +658,7 @@ export default function TranslationEditorPage({
 
           <div className="grid gap-6 md:grid-cols-2">
             <Card
-              className={`flex h-[70vh] flex-col gap-4 overflow-hidden ${
+              className={`flex h-[56vh] flex-col gap-4 overflow-hidden md:h-[70vh] ${
                 activePanel === "original" ? "flex" : "hidden md:flex"
               }`}
             >
@@ -700,7 +705,7 @@ export default function TranslationEditorPage({
           </Card>
 
           <Card
-            className={`flex h-[70vh] flex-col gap-4 overflow-hidden ${
+            className={`flex h-[56vh] flex-col gap-4 overflow-hidden md:h-[70vh] ${
               activePanel === "translation" ? "flex" : "hidden md:flex"
             }`}
           >

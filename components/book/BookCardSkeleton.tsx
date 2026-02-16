@@ -3,7 +3,7 @@ import { Card } from "@/components/common/Card";
 
 export function BookCardSkeleton() {
   return (
-    <Card className="flex h-full min-h-[320px] flex-col">
+    <Card className="flex h-full min-h-[260px] flex-col md:min-h-[320px]">
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <Skeleton className="h-5 w-40" />

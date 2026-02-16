@@ -37,7 +37,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen flex-col">
             <AppHeader />
-            <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 animate-rise">
+            <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 animate-rise sm:px-6 sm:py-10">
               {children}
             </main>
             <AppFooter />

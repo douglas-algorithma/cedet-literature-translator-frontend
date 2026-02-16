@@ -157,7 +157,7 @@ export function BookForm({
 
       <Textarea
         label="Notas para Tradução"
-        placeholder="Instruções específicas sobre tom, público-alvo ou adaptações"
+        placeholder="Use este campo para orientar a tradução quando quiser mais controle de estilo. Exemplos: tom (formal ou coloquial), público-alvo, termos que não devem ser traduzidos, preferências de adaptação cultural e nível de regionalismo."
         error={errors.translationNotes?.message}
         showCount
         maxLength={1000}
