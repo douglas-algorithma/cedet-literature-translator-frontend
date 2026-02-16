@@ -35,6 +35,7 @@ import type { TranslationStatus } from "@/types/translation";
 
 type TranslationMeta = {
   threadId?: string;
+  reviewPackage?: Record<string, unknown>;
   agentOutputs?: Record<string, unknown>;
   lastTranslation?: string;
 };
@@ -230,13 +231,21 @@ export default function TranslationEditorPage({
           ...state,
           [paragraph.id]: {
             threadId: result.threadId ?? meta?.threadId,
+            reviewPackage: result.reviewPackage ?? meta?.reviewPackage,
             agentOutputs: result.agentOutputs ?? meta?.agentOutputs,
             lastTranslation: translatedText,
           },
         }));
 
         setProgress(paragraph.id, { progress: 100, currentAgent: "Concluído" });
-        setReviewData(buildReview({ paragraphId: paragraph.id, translation: translatedText, agentOutputs: result.agentOutputs }));
+        setReviewData(
+          buildReview({
+            paragraphId: paragraph.id,
+            translation: translatedText,
+            reviewPackage: result.reviewPackage ?? undefined,
+            agentOutputs: result.agentOutputs,
+          }),
+        );
 
         await chaptersService.updateParagraph(paragraph.id, {
           translatedText,
@@ -392,7 +401,14 @@ export default function TranslationEditorPage({
         return;
       }
       const meta = metaByParagraph[paragraph.id];
-      openReview(buildReview({ paragraphId: paragraph.id, translation: paragraph.translation, agentOutputs: meta?.agentOutputs }));
+      openReview(
+        buildReview({
+          paragraphId: paragraph.id,
+          translation: paragraph.translation,
+          reviewPackage: meta?.reviewPackage,
+          agentOutputs: meta?.agentOutputs,
+        }),
+      );
       setActiveParagraphId(paragraph.id);
       setActivePanel("translation");
     },
@@ -529,6 +545,7 @@ export default function TranslationEditorPage({
         const payload = event.payload as {
           paragraphId: string;
           translation: string;
+          reviewPackage?: Record<string, unknown>;
           agentAnalysis?: Record<string, unknown>;
           suggestions?: string[];
         };
@@ -536,7 +553,9 @@ export default function TranslationEditorPage({
           buildReview({
             paragraphId: payload.paragraphId,
             translation: payload.translation,
+            reviewPackage: payload.reviewPackage,
             agentOutputs: payload.agentAnalysis,
+            suggestions: payload.suggestions,
           }),
         );
         setActiveParagraphId(payload.paragraphId);

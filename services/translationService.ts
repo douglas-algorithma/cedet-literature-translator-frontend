@@ -39,6 +39,7 @@ export type TranslationResult = {
   strategy?: string | null;
   threadId?: string | null;
   translatedText?: string | null;
+  reviewPackage?: Record<string, unknown> | null;
   agentOutputs?: Record<string, unknown>;
 };
 
@@ -56,6 +57,7 @@ export const translationService = {
       strategy?: string | null;
       thread_id?: string | null;
       translated_text?: string | null;
+      review_package?: Record<string, unknown> | null;
       agent_outputs?: Record<string, unknown>;
     }>(
       await apiClient.post("/translate/paragraph", {
@@ -89,6 +91,7 @@ export const translationService = {
       strategy: data.strategy,
       threadId: data.thread_id,
       translatedText: data.translated_text,
+      reviewPackage: data.review_package,
       agentOutputs: data.agent_outputs,
     } satisfies TranslationResult;
   },
