@@ -17,16 +17,20 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { Button, buttonStyles } from "@/components/common/Button";
+import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
 import { Textarea } from "@/components/common/Textarea";
+import {
+  clearChapterWizardSession,
+  loadChapterWizardSession,
+  saveChapterWizardSession,
+} from "@/lib/utils/chapterWizardSession";
 import { chapterMetaSchema, type ChapterMetaFormValues } from "@/lib/validation";
 import { chaptersService } from "@/services/chaptersService";
 import type { Chapter, ChapterPayload } from "@/types/chapter";
@@ -140,11 +144,14 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   const [mode, setMode] = useState<"paragraph" | "bulk" | null>(null);
   const [modeLocked, setModeLocked] = useState(false);
   const [chapterId, setChapterId] = useState<string | null>(null);
+  const [createdMode, setCreatedMode] = useState<"paragraph" | "bulk" | null>(null);
   const [paragraphs, setParagraphs] = useState<ParagraphField[]>([createParagraph()]);
   const [bulkText, setBulkText] = useState("");
   const [bulkParagraphs, setBulkParagraphs] = useState<ParagraphField[]>([]);
   const [parsingBulk, setParsingBulk] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [canceling, setCanceling] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(TouchSensor));
 
@@ -175,6 +182,11 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     },
   });
 
+  const watchedNumber = watch("number");
+  const watchedTitle = watch("title");
+  const watchedEpigraphText = watch("epigraphText");
+  const watchedEpigraphAuthor = watch("epigraphAuthor");
+
   useEffect(() => {
     if (!dirtyFields.number) {
       setValue("number", suggestedNumber, { shouldValidate: true });
@@ -185,35 +197,197 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     setStep(1);
   };
 
-  const handleCreateChapter = async () => {
+  const resetDraftContent = () => {
+    setParagraphs([createParagraph()]);
+    setBulkText("");
+    setBulkParagraphs([]);
+  };
+
+  const clearWizardState = () => {
+    clearChapterWizardSession(bookId);
+  };
+
+  const buildChapterPayload = (selectedMode: "paragraph" | "bulk"): ChapterPayload => ({
+    bookId,
+    number: typeof watchedNumber === "number" && Number.isFinite(watchedNumber) ? watchedNumber : suggestedNumber,
+    title: watchedTitle ?? "",
+    status: "pending",
+    insertionMode: selectedMode,
+    epigraph: watchedEpigraphText
+      ? {
+          text: watchedEpigraphText,
+          author: watchedEpigraphAuthor ?? "",
+        }
+      : undefined,
+  });
+
+  const applyCreatedChapter = (chapter: Chapter, selectedMode: "paragraph" | "bulk") => {
+    updateChaptersCache(chapter);
+    setChapterId(chapter.id);
+    setCreatedMode(selectedMode);
+    setModeLocked(true);
+    setStep(2);
+  };
+
+  const createChapterForMode = async (selectedMode: "paragraph" | "bulk") => {
+    const chapter = await chaptersService.create(bookId, buildChapterPayload(selectedMode));
+    applyCreatedChapter(chapter, selectedMode);
+  };
+
+  const deleteChapterInProgress = async (targetChapterId: string) => {
+    await chaptersService.delete(targetChapterId);
+    removeChapterFromCache(targetChapterId);
+    refreshChaptersCache();
+  };
+
+  const handleContinueFromMode = async () => {
     if (!mode) return;
     setSaving(true);
     try {
-      const values = watch();
-      const payload: ChapterPayload = {
-        bookId,
-        number: values.number,
-        title: values.title,
-        status: "pending",
-        insertionMode: mode,
-        epigraph: values.epigraphText
-          ? {
-              text: values.epigraphText,
-              author: values.epigraphAuthor ?? "",
-            }
-          : undefined,
-      };
-      const chapter = await chaptersService.create(bookId, payload);
-      updateChaptersCache(chapter);
-      setChapterId(chapter.id);
-      setModeLocked(true);
-      setStep(2);
+      if (chapterId && createdMode && mode === createdMode) {
+        setModeLocked(true);
+        setStep(2);
+        return;
+      }
+      if (chapterId) {
+        await deleteChapterInProgress(chapterId);
+        setChapterId(null);
+        setCreatedMode(null);
+        resetDraftContent();
+      }
+      await createChapterForMode(mode);
     } catch (error) {
-      toast.error((error as Error).message ?? "Não foi possível criar o capítulo.");
+      toast.error((error as Error).message ?? "Não foi possível preparar o capítulo.");
     } finally {
       setSaving(false);
     }
   };
+
+  const handleBackFromContent = () => {
+    setModeLocked(false);
+    setStep(1);
+  };
+
+  const handleCancelWizard = async () => {
+    setCanceling(true);
+    try {
+      if (chapterId) {
+        await deleteChapterInProgress(chapterId);
+      }
+      clearWizardState();
+      router.push(`/books/${bookId}`);
+    } catch (error) {
+      toast.error((error as Error).message ?? "Não foi possível cancelar a criação do capítulo.");
+    } finally {
+      setCanceling(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    const restore = async () => {
+      const saved = loadChapterWizardSession(bookId);
+      if (!saved) {
+        if (active) {
+          setSessionReady(true);
+        }
+        return;
+      }
+
+      if (saved.chapterId) {
+        try {
+          await chaptersService.get(saved.chapterId);
+        } catch {
+          clearWizardState();
+          if (!active) {
+            return;
+          }
+          resetDraftContent();
+          setStep(0);
+          setMode(null);
+          setModeLocked(false);
+          setChapterId(null);
+          setCreatedMode(null);
+          setValue("number", suggestedNumber, { shouldValidate: true });
+          setValue("title", "", { shouldValidate: true });
+          setValue("epigraphText", "", { shouldValidate: true });
+          setValue("epigraphAuthor", "", { shouldValidate: true });
+          setSessionReady(true);
+          return;
+        }
+      }
+
+      if (!active) {
+        return;
+      }
+
+      const restoredStep = saved.step === 2 && !saved.mode ? 1 : saved.step;
+
+      setStep(restoredStep);
+      setMode(saved.mode);
+      setModeLocked(saved.modeLocked);
+      setChapterId(saved.chapterId);
+      setCreatedMode(saved.createdMode ?? saved.mode);
+      setParagraphs(saved.paragraphs.length ? saved.paragraphs : [createParagraph()]);
+      setBulkText(saved.bulkText);
+      setBulkParagraphs(saved.bulkParagraphs);
+      setValue("number", saved.meta.number, { shouldValidate: true, shouldDirty: true });
+      setValue("title", saved.meta.title, { shouldValidate: true, shouldDirty: true });
+      setValue("epigraphText", saved.meta.epigraphText, { shouldValidate: true, shouldDirty: true });
+      setValue("epigraphAuthor", saved.meta.epigraphAuthor, { shouldValidate: true, shouldDirty: true });
+      setSessionReady(true);
+    };
+
+    void restore();
+
+    return () => {
+      active = false;
+    };
+  }, [bookId, setValue, suggestedNumber]);
+
+  useEffect(() => {
+    if (!sessionReady) {
+      return;
+    }
+
+    saveChapterWizardSession(bookId, {
+      version: 1,
+      step,
+      mode,
+      modeLocked,
+      chapterId,
+      createdMode,
+      meta: {
+        number:
+          typeof watchedNumber === "number" && Number.isFinite(watchedNumber) && watchedNumber > 0
+            ? watchedNumber
+            : suggestedNumber,
+        title: watchedTitle ?? "",
+        epigraphText: watchedEpigraphText ?? "",
+        epigraphAuthor: watchedEpigraphAuthor ?? "",
+      },
+      paragraphs,
+      bulkText,
+      bulkParagraphs,
+    });
+  }, [
+    bookId,
+    bulkParagraphs,
+    bulkText,
+    chapterId,
+    createdMode,
+    mode,
+    modeLocked,
+    paragraphs,
+    sessionReady,
+    step,
+    suggestedNumber,
+    watchedEpigraphAuthor,
+    watchedEpigraphText,
+    watchedNumber,
+    watchedTitle,
+  ]);
 
   const handleAddParagraph = () => {
     setParagraphs((current) => [...current, createParagraph()]);
@@ -319,6 +493,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   };
 
   const handlePostSave = () => {
+    clearWizardState();
     refreshChaptersCache();
     toast.success("Capítulo criado", {
       action: {
@@ -342,6 +517,12 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
       const next = [...current, chapter];
       return next.sort((a, b) => a.number - b.number);
     });
+  };
+
+  const removeChapterFromCache = (targetChapterId: string) => {
+    queryClient.setQueryData<Chapter[]>(["chapters", bookId], (current = []) =>
+      current.filter((item) => item.id !== targetChapterId),
+    );
   };
 
   const refreshChaptersCache = () => {
@@ -385,10 +566,16 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
           </details>
 
           <div className="flex justify-between">
-            <Link className={buttonStyles({ variant: "ghost" })} href={`/books/${bookId}`}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleCancelWizard}
+              disabled={saving}
+              loading={canceling}
+            >
               Cancelar
-            </Link>
-            <Button type="submit" disabled={!isValid}>
+            </Button>
+            <Button type="submit" disabled={!isValid || saving || canceling}>
               Continuar
             </Button>
           </div>
@@ -401,7 +588,8 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
         <div className="space-y-6">
           <Card className="space-y-3 border border-brand/30 bg-brand/5">
             <p className="text-sm font-semibold text-text">
-              O modo de inserção não pode ser alterado após o início. Escolha com atenção.
+              Você pode voltar e trocar o modo. Se trocar, o capítulo em andamento será recriado e os
+              rascunhos de conteúdo serão reiniciados.
             </p>
           </Card>
 
@@ -421,7 +609,6 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
               },
             ].map((option) => {
               const selected = mode === option.value;
-              const disabled = modeLocked && mode !== option.value;
               return (
                 <button
                   key={option.value}
@@ -430,10 +617,8 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
                     selected
                       ? "border-brand bg-brand/10"
                       : "border-border bg-surface hover:border-brand/50"
-                  } ${disabled ? "opacity-50" : ""}`}
-                  onClick={() => {
-                    if (!disabled) setMode(option.value as "paragraph" | "bulk");
-                  }}
+                  }`}
+                  onClick={() => setMode(option.value as "paragraph" | "bulk")}
                 >
                   <h3 className="text-base font-semibold text-text">{option.title}</h3>
                   <p className="mt-2 text-sm text-text-muted">{option.description}</p>
@@ -443,10 +628,26 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
           </div>
 
           <div className="flex justify-between">
-            <Button variant="ghost" type="button" onClick={() => setStep(0)}>
-              Voltar
-            </Button>
-            <Button type="button" disabled={!mode} onClick={handleCreateChapter} loading={saving}>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={handleCancelWizard}
+                disabled={saving}
+                loading={canceling}
+              >
+                Cancelar
+              </Button>
+              <Button variant="ghost" type="button" onClick={() => setStep(0)} disabled={saving || canceling}>
+                Voltar
+              </Button>
+            </div>
+            <Button
+              type="button"
+              disabled={!mode || canceling}
+              onClick={handleContinueFromMode}
+              loading={saving}
+            >
               Continuar
             </Button>
           </div>
@@ -487,10 +688,21 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
           </DndContext>
 
           <div className="flex justify-between">
-            <Button variant="ghost" type="button" onClick={() => setStep(1)}>
-              Voltar
-            </Button>
-            <Button type="button" onClick={saveParagraphMode} loading={saving}>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={handleCancelWizard}
+                disabled={saving}
+                loading={canceling}
+              >
+                Cancelar
+              </Button>
+              <Button variant="ghost" type="button" onClick={handleBackFromContent} disabled={saving || canceling}>
+                Voltar
+              </Button>
+            </div>
+            <Button type="button" onClick={saveParagraphMode} loading={saving} disabled={canceling}>
               Salvar capítulo
             </Button>
           </div>
@@ -556,10 +768,21 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
           )}
         </div>
         <div className="flex justify-between">
-          <Button variant="ghost" type="button" onClick={() => setStep(1)}>
-            Voltar
-          </Button>
-          <Button type="button" onClick={saveBulkMode} loading={saving}>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={handleCancelWizard}
+              disabled={saving}
+              loading={canceling}
+            >
+              Cancelar
+            </Button>
+            <Button variant="ghost" type="button" onClick={handleBackFromContent} disabled={saving || canceling}>
+              Voltar
+            </Button>
+          </div>
+          <Button type="button" onClick={saveBulkMode} loading={saving} disabled={canceling}>
             Salvar capítulo
           </Button>
         </div>

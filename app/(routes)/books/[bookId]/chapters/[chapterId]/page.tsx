@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { Modal } from "@/components/common/Modal";
 import { Skeleton } from "@/components/common/Skeleton";
+import { Textarea } from "@/components/common/Textarea";
 import { Toggle } from "@/components/common/Toggle";
 import {
   GlossaryHighlightText,
@@ -61,6 +63,9 @@ export default function TranslationEditorPage({
   const [metaByParagraph, setMetaByParagraph] = useState<Record<string, TranslationMeta>>({});
   const [isBatchTranslating, setIsBatchTranslating] = useState(false);
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
+  const [isAddingOriginalParagraph, setIsAddingOriginalParagraph] = useState(false);
+  const [isAddOriginalModalOpen, setIsAddOriginalModalOpen] = useState(false);
+  const [newOriginalParagraphText, setNewOriginalParagraphText] = useState("");
   const [activePanel, setActivePanel] = useState<"original" | "translation">("original");
 
   const {
@@ -408,6 +413,54 @@ export default function TranslationEditorPage({
     }
   }, []);
 
+  const handleOpenAddOriginalParagraphModal = useCallback(() => {
+    setActivePanel("original");
+    setIsAddOriginalModalOpen(true);
+  }, []);
+
+  const handleCloseAddOriginalParagraphModal = useCallback(() => {
+    if (isAddingOriginalParagraph) {
+      return;
+    }
+    setIsAddOriginalModalOpen(false);
+    setNewOriginalParagraphText("");
+  }, [isAddingOriginalParagraph]);
+
+  const handleAddOriginalParagraph = useCallback(async () => {
+    if (!chapterId) return;
+    const normalized = newOriginalParagraphText.trim();
+    if (!normalized) {
+      toast.error("O novo parágrafo não pode ficar vazio.");
+      return;
+    }
+
+    setIsAddingOriginalParagraph(true);
+    try {
+      const createdParagraph = await chaptersService.addParagraph(
+        chapterId,
+        normalized,
+        paragraphs.length + 1,
+      );
+      setStatus(createdParagraph.id, "pending");
+      toast.success("Parágrafo adicionado.");
+      setIsAddOriginalModalOpen(false);
+      setNewOriginalParagraphText("");
+      await refetch();
+      window.requestAnimationFrame(() => focusParagraph(createdParagraph.id));
+    } catch (error) {
+      toast.error((error as Error).message ?? "Erro ao adicionar parágrafo");
+    } finally {
+      setIsAddingOriginalParagraph(false);
+    }
+  }, [
+    chapterId,
+    focusParagraph,
+    newOriginalParagraphText,
+    paragraphs.length,
+    refetch,
+    setStatus,
+  ]);
+
   const handleOpenReview = useCallback(
     (paragraph?: Paragraph) => {
       if (!paragraph || !paragraph.translation) {
@@ -662,8 +715,18 @@ export default function TranslationEditorPage({
                 activePanel === "original" ? "flex" : "hidden md:flex"
               }`}
             >
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-base font-semibold text-text">Texto original</h3>
+            <div className="flex items-center justify-between gap-2 border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold text-text">Texto original</h3>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenAddOriginalParagraphModal}
+                >
+                  Adicionar parágrafo
+                </Button>
+              </div>
               <Badge variant="neutral">{book?.sourceLanguage ?? "-"}</Badge>
             </div>
             <div ref={leftPanelRef} className="flex-1 space-y-4 overflow-y-auto pr-2 text-sm text-text">
@@ -756,6 +819,41 @@ export default function TranslationEditorPage({
         </div>
         </div>
       )}
+
+      <Modal
+        open={isAddOriginalModalOpen}
+        onClose={handleCloseAddOriginalParagraphModal}
+        title="Adicionar parágrafo"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={handleCloseAddOriginalParagraphModal}
+              disabled={isAddingOriginalParagraph}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddOriginalParagraph}
+              loading={isAddingOriginalParagraph}
+              disabled={!newOriginalParagraphText.trim()}
+            >
+              Adicionar
+            </Button>
+          </div>
+        }
+      >
+        <Textarea
+          label="Texto do novo parágrafo"
+          placeholder="Digite o texto original do novo parágrafo"
+          value={newOriginalParagraphText}
+          onChange={(event) => setNewOriginalParagraphText(event.target.value)}
+          maxLength={4000}
+          showCount
+        />
+      </Modal>
 
       <TranslationFooterBar
         pendingReviewCount={pendingReviewCount}
