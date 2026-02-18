@@ -72,7 +72,7 @@ function SortableChapter({
 
 export function ChapterList({ bookId }: { bookId: string }) {
   const { data = [], isLoading, refetch } = useQuery({
-    queryKey: ["chapters", bookId],
+    queryKey: ["chapters", "withStats", bookId],
     queryFn: () => chaptersService.listWithStats(bookId),
   });
 

@@ -49,6 +49,18 @@ const mapBackendStatus = (status: Paragraph["status"]): TranslationStatus => {
   return "pending";
 };
 
+const MAX_BATCH_CONCURRENCY = 5;
+
+type TranslateParagraphMode = "manualReview" | "autoApprove";
+
+type TranslateParagraphOptions = {
+  feedback?: string;
+  mode?: TranslateParagraphMode;
+  refetchAfterSave?: boolean;
+  showSuccessToast?: boolean;
+  showErrorToast?: boolean;
+};
+
 export default function TranslationEditorPage({
   params,
 }: {
@@ -89,7 +101,7 @@ export default function TranslationEditorPage({
   });
 
   const { data: chapters = [] } = useQuery({
-    queryKey: ["chapters", bookId],
+    queryKey: ["chapters", "plain", bookId],
     queryFn: () => chaptersService.list(bookId),
   });
 
@@ -184,9 +196,61 @@ export default function TranslationEditorPage({
 
   useScrollSync({ enabled: syncScroll, leftRef: leftPanelRef, rightRef: rightPanelRef });
 
+  const saveParagraphTranslation = useCallback(
+    async ({
+      paragraphId,
+      translatedText,
+      status,
+    }: {
+      paragraphId: string;
+      translatedText: string;
+      status: "translated" | "approved";
+    }) => {
+      await chaptersService.updateParagraph(paragraphId, {
+        translatedText,
+        status,
+      });
+      if (status === "approved") {
+        setStatus(paragraphId, "approved");
+      }
+    },
+    [setStatus],
+  );
+
+  const queueReviewForParagraph = useCallback(
+    ({
+      paragraphId,
+      translation,
+      reviewPackage,
+      agentOutputs,
+    }: {
+      paragraphId: string;
+      translation: string;
+      reviewPackage?: Record<string, unknown> | null;
+      agentOutputs?: Record<string, unknown>;
+    }) => {
+      setReviewData(
+        buildReview({
+          paragraphId,
+          translation,
+          reviewPackage: reviewPackage ?? undefined,
+          agentOutputs,
+        }),
+      );
+    },
+    [setReviewData],
+  );
+
   const handleTranslateParagraph = useCallback(
-    async (paragraph: Paragraph, feedback?: string) => {
-      if (!book || !chapter) return;
+    async (paragraph: Paragraph, options?: TranslateParagraphOptions) => {
+      if (!book || !chapter) return false;
+      const {
+        feedback,
+        mode = "manualReview",
+        refetchAfterSave = true,
+        showSuccessToast = true,
+        showErrorToast = true,
+      } = options ?? {};
       setActiveParagraphId(paragraph.id);
       setStatus(paragraph.id, "translating");
       setProgress(paragraph.id, {
@@ -257,9 +321,11 @@ export default function TranslationEditorPage({
 
         const translatedText = result.translatedText;
         if (!translatedText) {
-          toast.error("A tradução não retornou texto.");
+          if (showErrorToast) {
+            toast.error("A tradução não retornou texto.");
+          }
           setError(paragraph.id, "Sem conteúdo traduzido.");
-          return;
+          return false;
         }
 
         setMetaByParagraph((state) => ({
@@ -273,36 +339,53 @@ export default function TranslationEditorPage({
         }));
 
         setProgress(paragraph.id, { progress: 100, currentAgent: "Concluído" });
-        setReviewData(
-          buildReview({
+        if (mode === "manualReview") {
+          queueReviewForParagraph({
             paragraphId: paragraph.id,
             translation: translatedText,
             reviewPackage: result.reviewPackage ?? undefined,
             agentOutputs: result.agentOutputs,
-          }),
-        );
-
-        await chaptersService.updateParagraph(paragraph.id, {
-          translatedText,
-          status: "translated",
-        });
-
-        toast.success("Tradução concluída. Revisão pendente.");
-        await refetch();
+          });
+          await saveParagraphTranslation({
+            paragraphId: paragraph.id,
+            translatedText,
+            status: "translated",
+          });
+          if (showSuccessToast) {
+            toast.success("Tradução concluída. Revisão pendente.");
+          }
+        } else {
+          await saveParagraphTranslation({
+            paragraphId: paragraph.id,
+            translatedText,
+            status: "approved",
+          });
+          if (showSuccessToast) {
+            toast.success("Tradução concluída e aprovada.");
+          }
+        }
+        if (refetchAfterSave) {
+          await refetch();
+        }
+        return true;
       } catch (error) {
         setError(paragraph.id, (error as Error).message ?? "Erro ao traduzir.");
-        toast.error((error as Error).message ?? "Erro ao traduzir parágrafo");
+        if (showErrorToast) {
+          toast.error((error as Error).message ?? "Erro ao traduzir parágrafo");
+        }
+        return false;
       }
     },
     [
       book,
       chapter,
+      queueReviewForParagraph,
       metaByParagraph,
       refetch,
+      saveParagraphTranslation,
       serializedGlossaryEntries,
       setError,
       setProgress,
-      setReviewData,
       setStatus,
     ],
   );
@@ -424,7 +507,10 @@ export default function TranslationEditorPage({
         toast.error("Descreva o motivo do refinamento.");
         return;
       }
-      await handleTranslateParagraph({ ...paragraph, translation: currentTranslation }, feedback);
+      await handleTranslateParagraph(
+        { ...paragraph, translation: currentTranslation },
+        { feedback },
+      );
     },
     [handleTranslateParagraph],
   );
@@ -519,19 +605,54 @@ export default function TranslationEditorPage({
       toast.message("Nenhum parágrafo pendente.");
       return;
     }
-    const confirm = window.confirm(`Iniciar tradução de ${pendingParagraphs.length} parágrafos pendentes?`);
+    const confirm = window.confirm(
+      `Iniciar tradução de ${pendingParagraphs.length} parágrafos pendentes com autoaprovação?`,
+    );
     if (!confirm) return;
 
+    const workers = Math.min(MAX_BATCH_CONCURRENCY, pendingParagraphs.length);
+    const queue = [...pendingParagraphs];
+    let successCount = 0;
+    let failedCount = 0;
+
     setIsBatchTranslating(true);
-    for (const paragraph of pendingParagraphs) {
-      await handleTranslateParagraph(paragraph);
-      if (useTranslationStore.getState().currentReview) {
-        toast.message("Revisão pendente. Fluxo em pausa.");
-        break;
+    try {
+      const workerTasks = Array.from({ length: workers }, async () => {
+        while (queue.length > 0) {
+          const paragraph = queue.shift();
+          if (!paragraph) {
+            return;
+          }
+          const success = await handleTranslateParagraph(paragraph, {
+            mode: "autoApprove",
+            refetchAfterSave: false,
+            showSuccessToast: false,
+            showErrorToast: false,
+          });
+          if (success) {
+            successCount += 1;
+            continue;
+          }
+          failedCount += 1;
+        }
+      });
+
+      await Promise.all(workerTasks);
+      await refetch();
+      if (successCount > 0) {
+        toast.success(
+          `${successCount} parágrafo${successCount > 1 ? "s" : ""} traduzido${successCount > 1 ? "s" : ""} e aprovado${successCount > 1 ? "s" : ""}.`,
+        );
       }
+      if (failedCount > 0) {
+        toast.error(
+          `${failedCount} parágrafo${failedCount > 1 ? "s" : ""} ${failedCount > 1 ? "falharam" : "falhou"} na tradução em lote.`,
+        );
+      }
+    } finally {
+      setIsBatchTranslating(false);
     }
-    setIsBatchTranslating(false);
-  }, [getParagraphStatus, handleTranslateParagraph, paragraphs]);
+  }, [getParagraphStatus, handleTranslateParagraph, paragraphs, refetch]);
 
   const handleSkipReview = useCallback(() => {
     closeReview();

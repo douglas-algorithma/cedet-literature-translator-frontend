@@ -39,7 +39,7 @@ export function BookDetails({ bookId }: { bookId: string }) {
   });
 
   const { data: chapters = [] } = useQuery({
-    queryKey: ["chapters", bookId],
+    queryKey: ["chapters", "withStats", bookId],
     queryFn: () => chaptersService.listWithStats(bookId),
   });
 

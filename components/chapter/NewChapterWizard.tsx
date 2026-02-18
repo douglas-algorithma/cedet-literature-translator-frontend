@@ -37,6 +37,10 @@ import type { Chapter, ChapterPayload } from "@/types/chapter";
 
 const steps = ["Metadados", "Modo", "Conteúdo"];
 
+const getPlainChaptersQueryKey = (bookId: string) => ["chapters", "plain", bookId] as const;
+const getChaptersWithStatsQueryKey = (bookId: string) =>
+  ["chapters", "withStats", bookId] as const;
+
 type ParagraphField = {
   id: string;
   text: string;
@@ -157,7 +161,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   const sensors = useSensors(useSensor(PointerSensor), useSensor(TouchSensor));
 
   const { data: chapters = [] } = useQuery({
-    queryKey: ["chapters", bookId],
+    queryKey: getPlainChaptersQueryKey(bookId),
     queryFn: () => chaptersService.list(bookId),
   });
 
@@ -238,7 +242,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   const deleteChapterInProgress = async (targetChapterId: string) => {
     await chaptersService.delete(targetChapterId);
     removeChapterFromCache(targetChapterId);
-    refreshChaptersCache();
+    await refreshChaptersCache();
   };
 
   const handleContinueFromMode = async () => {
@@ -462,7 +466,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
       for (let i = 0; i < cleaned.length; i += 1) {
         await chaptersService.addParagraph(chapterId, cleaned[i], i + 1);
       }
-      handlePostSave();
+      await handlePostSave();
     } catch (error) {
       toast.error((error as Error).message ?? "Erro ao salvar parágrafos");
     } finally {
@@ -491,7 +495,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
         return;
       }
       await chaptersService.bulkInsert(chapterId, cleaned);
-      handlePostSave();
+      await handlePostSave();
     } catch (error) {
       toast.error((error as Error).message ?? "Erro ao salvar capítulo");
     } finally {
@@ -499,9 +503,9 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     }
   };
 
-  const handlePostSave = () => {
+  const handlePostSave = async () => {
     clearWizardState();
-    refreshChaptersCache();
+    await refreshChaptersCache();
     toast.success("Capítulo criado", {
       action: {
         label: "Ir para tradução",
@@ -517,7 +521,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   };
 
   const updateChaptersCache = (chapter: Chapter) => {
-    queryClient.setQueryData<Chapter[]>(["chapters", bookId], (current = []) => {
+    queryClient.setQueryData<Chapter[]>(getPlainChaptersQueryKey(bookId), (current = []) => {
       if (current.some((item) => item.id === chapter.id)) {
         return current;
       }
@@ -527,13 +531,18 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   };
 
   const removeChapterFromCache = (targetChapterId: string) => {
-    queryClient.setQueryData<Chapter[]>(["chapters", bookId], (current = []) =>
+    queryClient.setQueryData<Chapter[]>(getPlainChaptersQueryKey(bookId), (current = []) =>
       current.filter((item) => item.id !== targetChapterId),
     );
   };
 
-  const refreshChaptersCache = () => {
-    queryClient.invalidateQueries({ queryKey: ["chapters", bookId] });
+  const refreshChaptersCache = async () => {
+    await queryClient.invalidateQueries({ queryKey: getPlainChaptersQueryKey(bookId) });
+    await queryClient.fetchQuery({
+      queryKey: getChaptersWithStatsQueryKey(bookId),
+      queryFn: () => chaptersService.listWithStats(bookId),
+      staleTime: 0,
+    });
   };
 
   const renderStep = () => {

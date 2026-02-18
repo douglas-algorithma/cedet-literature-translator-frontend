@@ -95,7 +95,7 @@ export function ParagraphTranslationCard({
             status === "approved" ? "text-text" : "text-text",
           )}
         >
-          {translation || "Tradução indisponível."}
+          {translation || "Aguarde finalizar tudo."}
         </p>
       ) : null}
 

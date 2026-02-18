@@ -55,8 +55,41 @@ export const GENRE_OPTIONS = [
   "Policial",
 ] as const;
 
-export const LLM_MODEL_OPTIONS = [
-  { value: "openai/gpt-4.1", label: "OpenAI GPT-4.1" },
-  { value: "openai/gpt-4.1-mini", label: "OpenAI GPT-4.1 Mini" },
-  { value: "anthropic/claude-sonnet-4.6", label: "Anthropic Claude Sonnet 4.6" },
-] as const;
+const LLM_MODEL_COSTS = {
+  "openai/gpt-4.1": {
+    profile: "Normal",
+    inputPerMillion: 2,
+    outputPerMillion: 8,
+  },
+  "openai/gpt-4.1-mini": {
+    profile: "Rápido",
+    inputPerMillion: 0.4,
+    outputPerMillion: 1.6,
+  },
+  "anthropic/claude-sonnet-4.6": {
+    profile: "Verboso/Contextual",
+    inputPerMillion: 3,
+    outputPerMillion: 15,
+  },
+} as const;
+
+const BASE_LLM_MODEL = "openai/gpt-4.1";
+
+const baseModelCosts = LLM_MODEL_COSTS[BASE_LLM_MODEL];
+
+const calculateCostMultiplier = (model: keyof typeof LLM_MODEL_COSTS) => {
+  const costs = LLM_MODEL_COSTS[model];
+  const inputRatio = costs.inputPerMillion / baseModelCosts.inputPerMillion;
+  const outputRatio = costs.outputPerMillion / baseModelCosts.outputPerMillion;
+  return (inputRatio + outputRatio) / 2;
+};
+
+export const LLM_MODEL_OPTIONS = (Object.entries(LLM_MODEL_COSTS) as Array<
+  [keyof typeof LLM_MODEL_COSTS, (typeof LLM_MODEL_COSTS)[keyof typeof LLM_MODEL_COSTS]]
+>).map(([value, model]) => {
+  const multiplier = calculateCostMultiplier(value).toFixed(2);
+  return {
+    value,
+    label: `${multiplier}x • ${model.profile}`,
+  };
+});

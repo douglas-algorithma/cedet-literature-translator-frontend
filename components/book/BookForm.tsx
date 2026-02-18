@@ -63,6 +63,7 @@ export function BookForm({
 
   const genreSelection = useWatch({ control, name: "genre" }) ?? [];
   const [customGenre, setCustomGenre] = useState("");
+  const [isApiKeyInfoOpen, setIsApiKeyInfoOpen] = useState(false);
 
   const languageOptions = LANGUAGE_OPTIONS.map((language) => ({
     label: language,
@@ -138,16 +139,43 @@ export function BookForm({
           error={errors.llmModel?.message}
           {...register("llmModel")}
         />
-        <Input
-          label="OpenRouter API Key"
-          type="password"
-          autoComplete="off"
-          required={requireApiKey}
-          placeholder={requireApiKey ? "sk-or-v1-..." : "Deixe em branco para manter"}
-          error={errors.openrouterApiKey?.message}
-          hint={apiKeyHint}
-          {...register("openrouterApiKey")}
-        />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-sm text-text">
+            <span className="font-medium">OpenRouter API Key</span>
+            <button
+              type="button"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-xs font-semibold text-text-muted transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+              aria-expanded={isApiKeyInfoOpen}
+              aria-controls="openrouter-api-key-help"
+              onClick={() => setIsApiKeyInfoOpen((current) => !current)}
+            >
+              i
+            </button>
+          </div>
+          {isApiKeyInfoOpen ? (
+            <div id="openrouter-api-key-help" className="rounded-xl border border-border bg-surface px-3 py-2 text-xs text-text-muted">
+              Gere sua chave em{" "}
+              <a
+                href="https://openrouter.ai/settings/keys"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-4 hover:no-underline"
+              >
+                openrouter.ai/settings/keys
+              </a>
+              .
+            </div>
+          ) : null}
+          <Input
+            type="password"
+            autoComplete="off"
+            required={requireApiKey}
+            placeholder={requireApiKey ? "sk-or-v1-..." : "Deixe em branco para manter"}
+            error={errors.openrouterApiKey?.message}
+            hint={apiKeyHint}
+            {...register("openrouterApiKey")}
+          />
+        </div>
       </div>
 
       <Textarea

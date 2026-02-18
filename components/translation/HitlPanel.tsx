@@ -97,7 +97,9 @@ export function HitlPanel({
           {previousText ? (
             <p className="text-sm text-text-muted">Anterior: {previousText}</p>
           ) : null}
-          <p className="text-sm text-text">Atual: {originalText}</p>
+          <p className="text-sm text-text">
+            Atual: <span className="text-base font-bold text-text">{originalText}</span>
+          </p>
           {nextText ? (
             <p className="text-sm text-text-muted">Próximo: {nextText}</p>
           ) : null}
