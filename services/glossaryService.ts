@@ -12,6 +12,12 @@ type GlossaryApi = {
   created_at: string;
 };
 
+type GlossaryMutationApi = {
+  term: GlossaryApi;
+  conflict: boolean;
+  message?: string | null;
+};
+
 type GlossarySuggestionApi = {
   id: string;
   book_id: string;
@@ -22,6 +28,23 @@ type GlossarySuggestionApi = {
   category?: string | null;
   confidence: number;
   created_at: string;
+};
+
+export type GlossaryMutationResult = {
+  term: GlossaryTerm;
+  conflict: boolean;
+  message?: string;
+};
+
+export type GlossaryConflictResult = {
+  attemptedSourceTerm: string;
+  existingTerm: GlossaryTerm;
+  message: string;
+};
+
+export type GlossaryBulkMutationResult = {
+  created: GlossaryTerm[];
+  conflicts: GlossaryConflictResult[];
 };
 
 const handleResponse = <T>(response: { success: boolean; data?: T; error?: { message: string } }) => {
@@ -67,19 +90,37 @@ const mapSuggestion = (suggestion: GlossarySuggestionApi): GlossarySuggestion =>
 });
 
 /**
+ * Map glossary mutation API payload to UI model.
+ *
+ * @param payload - Glossary mutation payload.
+ * @returns Mutation result mapped object.
+ */
+const mapMutation = (payload: GlossaryMutationApi): GlossaryMutationResult => ({
+  term: mapTerm(payload.term),
+  conflict: payload.conflict,
+  message: payload.message ?? undefined,
+});
+
+/**
  * Approve multiple glossary suggestions.
  *
  * @param suggestionIds - Suggestion identifiers.
- * @returns Approved glossary terms.
+ * @returns Created terms and conflicts.
  */
-const approveSuggestions = async (suggestionIds: string[]) => {
+const approveSuggestions = async (suggestionIds: string[]): Promise<GlossaryBulkMutationResult> => {
   if (suggestionIds.length === 0) {
-    return [];
+    return { created: [], conflicts: [] };
   }
-  const approved = await Promise.all(
-    suggestionIds.map((id) => glossaryService.approveSuggestion(id)),
-  );
-  return approved;
+  const approved = await Promise.all(suggestionIds.map((id) => glossaryService.approveSuggestion(id)));
+  const created = approved.filter((item) => !item.conflict).map((item) => item.term);
+  const conflicts = approved
+    .filter((item) => item.conflict)
+    .map((item) => ({
+      attemptedSourceTerm: item.term.sourceTerm,
+      existingTerm: item.term,
+      message: item.message ?? "Termo ja existente no glossario",
+    }));
+  return { created, conflicts };
 };
 
 /**
@@ -108,8 +149,8 @@ export const glossaryService = {
     category?: string;
     caseSensitive?: boolean;
     wholeWord?: boolean;
-  }) => {
-    const data = handleResponse<GlossaryApi>(
+  }): Promise<GlossaryMutationResult> => {
+    const data = handleResponse<GlossaryMutationApi>(
       await apiClient.post("/glossary", {
         book_id: payload.bookId ?? null,
         source_term: payload.sourceTerm,
@@ -122,7 +163,7 @@ export const glossaryService = {
         }),
       }),
     );
-    return mapTerm(data);
+    return mapMutation(data);
   },
   update: async (id: string, payload: Partial<Omit<GlossaryTerm, "id" | "createdAt">>) => {
     const data = handleResponse<GlossaryApi>(
@@ -152,11 +193,11 @@ export const glossaryService = {
     );
     return data.map(mapSuggestion);
   },
-  approveSuggestion: async (suggestionId: string) => {
-    const data = handleResponse<GlossaryApi>(
+  approveSuggestion: async (suggestionId: string): Promise<GlossaryMutationResult> => {
+    const data = handleResponse<GlossaryMutationApi>(
       await apiClient.post(`/glossary/suggestions/${encodeURIComponent(suggestionId)}/approve`),
     );
-    return mapTerm(data);
+    return mapMutation(data);
   },
   rejectSuggestion: async (suggestionId: string) => {
     await handleResponse<void>(

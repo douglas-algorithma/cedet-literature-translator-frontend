@@ -35,7 +35,7 @@ export function ParagraphOriginalCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border bg-surface px-4 py-3 shadow-sm transition",
+        "min-w-0 rounded-2xl border border-border bg-surface px-4 py-3 shadow-sm transition",
         isActive ? "border-brand/60 ring-2 ring-brand/20" : "hover:border-brand/40",
       )}
       data-paragraph-id={dataParagraphId}
@@ -46,7 +46,7 @@ export function ParagraphOriginalCard({
         if (event.key === "Enter") onFocus?.();
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 sm:items-center">
         <p className="text-xs font-semibold text-text-muted">Parágrafo {index}</p>
         <div className="flex flex-wrap items-center gap-2">
           {onMoveUp ? (
@@ -99,7 +99,9 @@ export function ParagraphOriginalCard({
           ) : null}
         </div>
       </div>
-      <p className="mt-2 text-sm text-text">{highlightedText ?? text}</p>
+      <p className="mt-2 break-words whitespace-pre-wrap text-sm text-text">
+        {highlightedText ?? text}
+      </p>
       {onTranslate ? (
         <div className="mt-3">
           <Button size="sm" variant="ghost" onClick={onTranslate}>

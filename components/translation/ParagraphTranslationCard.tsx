@@ -89,14 +89,19 @@ export function ParagraphTranslationCard({
       ) : null}
 
       {status !== "pending" && status !== "translating" ? (
-        <p className={cn("mt-3 text-sm", status === "approved" ? "text-text" : "text-text")}>
+        <p
+          className={cn(
+            "mt-3 break-words whitespace-pre-wrap text-sm",
+            status === "approved" ? "text-text" : "text-text",
+          )}
+        >
           {translation || "Tradução indisponível."}
         </p>
       ) : null}
 
       {status === "pending" && onTranslate ? (
         <div className="mt-3">
-          <Button size="sm" variant="outline" className="min-h-10" onClick={onTranslate}>
+          <Button size="sm" variant="outline" className="min-h-10 w-full sm:w-auto" onClick={onTranslate}>
             Traduzir
           </Button>
         </div>
@@ -104,21 +109,26 @@ export function ParagraphTranslationCard({
 
       {status === "error" && onRetry ? (
         <div className="mt-3">
-          <Button size="sm" variant="outline" className="min-h-10" onClick={onRetry}>
+          <Button size="sm" variant="outline" className="min-h-10 w-full sm:w-auto" onClick={onRetry}>
             Tentar novamente
           </Button>
         </div>
       ) : null}
 
       {showActions ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button size="sm" className="min-h-10" onClick={onApprove}>
+        <div className="mt-4 flex flex-wrap items-stretch gap-2">
+          <Button size="sm" className="min-h-10 w-full sm:w-auto" onClick={onApprove}>
             Aprovar
           </Button>
-          <Button size="sm" variant="secondary" className="min-h-10" onClick={onOpenReview}>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="min-h-10 w-full sm:w-auto"
+            onClick={onOpenReview}
+          >
             Editar
           </Button>
-          <Button size="sm" variant="ghost" className="min-h-10" onClick={onRefine}>
+          <Button size="sm" variant="ghost" className="min-h-10 w-full sm:w-auto" onClick={onRefine}>
             Refinamento
           </Button>
         </div>
@@ -126,7 +136,7 @@ export function ParagraphTranslationCard({
 
       {status === "approved" && onOpenReview ? (
         <div className="mt-4">
-          <Button size="sm" variant="ghost" className="min-h-10" onClick={onOpenReview}>
+          <Button size="sm" variant="ghost" className="min-h-10 w-full sm:w-auto" onClick={onOpenReview}>
             Editar tradução
           </Button>
         </div>
@@ -141,7 +151,7 @@ export function ParagraphTranslationCard({
             {glossaryStatus.applied}/{glossaryStatus.total} termos aplicados
           </span>
           {glossaryStatus.missingTerms?.length ? (
-            <span className="text-warning">
+            <span className="break-words text-warning">
               · Falta: {glossaryStatus.missingTerms.join(", ")}
             </span>
           ) : null}

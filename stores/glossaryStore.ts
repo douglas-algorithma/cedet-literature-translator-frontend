@@ -1,6 +1,10 @@
 import { create } from "zustand";
 
-import { glossaryService } from "@/services/glossaryService";
+import {
+  glossaryService,
+  type GlossaryBulkMutationResult,
+  type GlossaryMutationResult,
+} from "@/services/glossaryService";
 import type { GlossarySuggestion, GlossaryTerm } from "@/types/glossary";
 
 /**
@@ -22,8 +26,8 @@ type GlossaryStore = {
   updateTerm: (term: GlossaryTerm) => void;
   deleteTerm: (id: string) => void;
   addPendingTerm: (term: GlossarySuggestion) => void;
-  approvePendingTerm: (term: GlossarySuggestion) => Promise<void>;
-  approvePendingTerms: (terms: GlossarySuggestion[]) => Promise<void>;
+  approvePendingTerm: (term: GlossarySuggestion) => Promise<GlossaryMutationResult>;
+  approvePendingTerms: (terms: GlossarySuggestion[]) => Promise<GlossaryBulkMutationResult>;
   rejectPendingTerm: (term: GlossarySuggestion) => Promise<void>;
   rejectPendingTerms: (terms: GlossarySuggestion[]) => Promise<void>;
 };
@@ -60,10 +64,11 @@ export const useGlossaryStore = create<GlossaryStore>((set) => ({
       return { pendingTerms: [...state.pendingTerms, term] };
     }),
   approvePendingTerm: async (term) => {
-    await glossaryService.approveSuggestion(term.id);
+    const result = await glossaryService.approveSuggestion(term.id);
     set((state) => ({
       pendingTerms: state.pendingTerms.filter((item) => item.id !== term.id),
     }));
+    return result;
   },
   /**
    * Approve multiple pending suggestions.
@@ -72,10 +77,11 @@ export const useGlossaryStore = create<GlossaryStore>((set) => ({
    */
   approvePendingTerms: async (terms) => {
     const ids = buildSuggestionIdSet(terms);
-    await glossaryService.approveSuggestions(Array.from(ids));
+    const result = await glossaryService.approveSuggestions(Array.from(ids));
     set((state) => ({
       pendingTerms: state.pendingTerms.filter((item) => !ids.has(item.id)),
     }));
+    return result;
   },
   rejectPendingTerm: async (term) => {
     await glossaryService.rejectSuggestion(term.id);

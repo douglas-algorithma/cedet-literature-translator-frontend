@@ -25,6 +25,7 @@ import { buildReview } from "@/lib/utils/translation";
 import { getGlossaryCoverage } from "@/lib/utils/glossary";
 import { useScrollSync } from "@/lib/hooks/useScrollSync";
 import { useWebSocket } from "@/lib/hooks/useWebSocket";
+import { cn } from "@/lib/utils";
 import { booksService } from "@/services/booksService";
 import { chaptersService } from "@/services/chaptersService";
 import { glossaryService } from "@/services/glossaryService";
@@ -686,7 +687,7 @@ export default function TranslationEditorPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", pendingReviewCount > 0 && "pb-24 sm:pb-28")}>
       <TranslationHeader
         backHref={`/books/${bookId}`}
         title={`Capítulo ${chapter?.number ?? chapterId}: ${chapter?.title ?? ""}`}
@@ -719,7 +720,7 @@ export default function TranslationEditorPage({
         <Skeleton className="h-40" />
       ) : (
         <div className="space-y-4">
-          <div className="flex gap-2 md:hidden">
+          <div className="flex gap-2 lg:hidden">
             <Button
               size="sm"
               className="flex-1"
@@ -738,27 +739,36 @@ export default function TranslationEditorPage({
             </Button>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
             <Card
-              className={`flex h-[56vh] flex-col gap-4 overflow-hidden md:h-[70vh] ${
-                activePanel === "original" ? "flex" : "hidden md:flex"
+              className={`flex min-h-[360px] max-h-[calc(100vh-16rem)] flex-col gap-4 overflow-hidden sm:min-h-[420px] sm:max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-12rem)] ${
+                activePanel === "original" ? "flex" : "hidden lg:flex"
               }`}
             >
-            <div className="flex items-center justify-between gap-2 border-b border-border pb-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <h3 className="text-base font-semibold text-text">Texto original</h3>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={handleOpenAddOriginalParagraphModal}
                 >
                   Adicionar parágrafo
                 </Button>
               </div>
-              <Badge variant="neutral">{book?.sourceLanguage ?? "-"}</Badge>
+              <Badge variant="neutral" className="shrink-0">
+                {book?.sourceLanguage ?? "-"}
+              </Badge>
             </div>
-            <div ref={leftPanelRef} className="flex-1 space-y-4 overflow-y-auto pr-2 text-sm text-text">
+            <div
+              ref={leftPanelRef}
+              className={cn(
+                "flex-1 space-y-4 overflow-y-auto pr-2 pb-6 text-sm text-text",
+                pendingReviewCount > 0 && "pb-28 sm:pb-32",
+              )}
+            >
               {chapter?.epigraph ? (
                 <div className="rounded-2xl border border-border bg-surface-muted p-4 text-sm italic text-text">
                   <p>{chapter.epigraph.text}</p>
@@ -797,15 +807,23 @@ export default function TranslationEditorPage({
           </Card>
 
           <Card
-            className={`flex h-[56vh] flex-col gap-4 overflow-hidden md:h-[70vh] ${
-              activePanel === "translation" ? "flex" : "hidden md:flex"
+            className={`flex min-h-[360px] max-h-[calc(100vh-16rem)] flex-col gap-4 overflow-hidden sm:min-h-[420px] sm:max-h-[calc(100vh-14rem)] lg:max-h-[calc(100vh-12rem)] ${
+              activePanel === "translation" ? "flex" : "hidden lg:flex"
             }`}
           >
-            <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
               <h3 className="text-base font-semibold text-text">Tradução</h3>
-              <Badge variant="neutral">{book?.targetLanguage ?? "-"}</Badge>
+              <Badge variant="neutral" className="shrink-0">
+                {book?.targetLanguage ?? "-"}
+              </Badge>
             </div>
-            <div ref={rightPanelRef} className="flex-1 space-y-4 overflow-y-auto pr-2 text-sm text-text">
+            <div
+              ref={rightPanelRef}
+              className={cn(
+                "flex-1 space-y-4 overflow-y-auto pr-2 pb-6 text-sm text-text",
+                pendingReviewCount > 0 && "pb-28 sm:pb-32",
+              )}
+            >
               {chapter?.epigraph ? (
                 <div className="rounded-2xl border border-border bg-surface-muted p-4 text-sm italic text-text-muted">
                   Epígrafe aguardando tradução.

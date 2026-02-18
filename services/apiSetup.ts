@@ -1,4 +1,5 @@
 import { addRequestInterceptor, addResponseInterceptor } from "./httpClient";
+import { toast } from "sonner";
 import { clearToken, getToken } from "./authService";
 
 let initialized = false;
@@ -25,7 +26,7 @@ export const initApiClient = () => {
     }
 
     if (response.status === 403) {
-      console.warn("Permissão insuficiente para acessar este recurso.");
+      toast.error("Você não tem permissão para acessar este recurso.");
     }
 
     if (response.status >= 500) {

@@ -5,38 +5,28 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { buttonStyles, Button } from "@/components/common/Button";
+import { Button } from "@/components/common/Button";
 import { isAuthenticated, logout } from "@/services/authService";
 import { KeyboardShortcutsModal } from "@/components/common/KeyboardShortcutsModal";
 import { ICONS } from "@/config/icons";
 import { APP_NAME, APP_TAGLINE } from "@/config/app";
-import { MAIN_NAV } from "@/config/navigation";
-import { useKeyboardShortcuts } from "@/lib/hooks";
+import { useKeyboardShortcuts, useScrollHide } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
-
-const renderNavItem = (item: (typeof MAIN_NAV)[number]) => {
-  const Icon = ICONS[item.icon];
-
-  return (
-    <Link
-      key={item.href}
-      href={item.href}
-      className={cn(
-        "flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-text-muted transition hover:text-text",
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      {item.label}
-    </Link>
-  );
-};
+import { useUiStore } from "@/stores/uiStore";
 
 export function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const mobileSidebarOpen = useUiStore((state) => state.mobileSidebarOpen);
+  const toggleMobileSidebar = useUiStore((state) => state.toggleMobileSidebar);
   const MenuIcon = ICONS.menu;
+  const isLoginRoute = pathname === "/login" || pathname?.startsWith("/login/");
+  const isHidden = useScrollHide({
+    threshold: 84,
+    minDelta: 6,
+    disabled: mobileSidebarOpen || isLoginRoute,
+  });
 
   useKeyboardShortcuts(
     {
@@ -71,21 +61,27 @@ export function AppHeader() {
   );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-surface/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+    <header
+      className={cn(
+        "sticky top-0 z-40 border-b border-border/60 bg-surface/90 backdrop-blur transition-transform duration-300 ease-out focus-within:translate-y-0",
+        isHidden ? "-translate-y-full" : "translate-y-0",
+      )}
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2.5 sm:px-6 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Link
+            href="/"
+            aria-label="Ir para o dashboard"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand"
+          >
             <span className="text-lg font-bold">C</span>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-text">{APP_NAME}</p>
-            <p className="text-xs text-text-muted">{APP_TAGLINE}</p>
+          </Link>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-text">{APP_NAME}</p>
+            <p className="hidden truncate text-[11px] text-text-muted lg:block">{APP_TAGLINE}</p>
           </div>
         </div>
-        <nav className="hidden items-center gap-2 md:flex">
-          {MAIN_NAV.map(renderNavItem)}
-        </nav>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {isAuthenticated() ? (
             <Button
               variant="ghost"
@@ -101,42 +97,23 @@ export function AppHeader() {
           <Button
             variant="ghost"
             size="sm"
-            className="hidden lg:inline-flex"
+            className="hidden xl:inline-flex"
             onClick={() => setShortcutsOpen(true)}
           >
             Atalhos
           </Button>
-          <Button variant="outline" size="sm" className="hidden lg:inline-flex">
-            Suporte
-          </Button>
-          <Link className={buttonStyles({ size: "sm", className: "hidden sm:inline-flex" })} href="/books/new">
-            Novo Projeto
-          </Link>
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-text md:hidden"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-label="Abrir menu"
-            aria-expanded={menuOpen}
-            aria-controls="mobile-menu"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text md:hidden"
+            onClick={toggleMobileSidebar}
+            aria-label={mobileSidebarOpen ? "Fechar menu lateral" : "Abrir menu lateral"}
+            aria-expanded={mobileSidebarOpen}
+            aria-controls="mobile-app-sidebar"
           >
             <MenuIcon className="h-5 w-5" />
           </button>
         </div>
       </div>
-      {menuOpen ? (
-        <div
-          id="mobile-menu"
-          className="border-t border-border/60 bg-surface px-4 py-4 sm:px-6 md:hidden"
-        >
-          <nav className="flex flex-col gap-2">
-            {MAIN_NAV.map(renderNavItem)}
-            <Link className={buttonStyles({ className: "justify-center" })} href="/books/new">
-              Novo Projeto
-            </Link>
-          </nav>
-        </div>
-      ) : null}
 
       <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </header>

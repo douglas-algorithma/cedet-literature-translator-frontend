@@ -119,7 +119,7 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
         });
         toast.success("Termo atualizado");
       } else {
-        await glossaryService.create({
+        const result = await glossaryService.create({
           bookId,
           sourceTerm: values.sourceTerm,
           targetTerm: values.targetTerm,
@@ -128,7 +128,11 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
           caseSensitive: values.caseSensitive,
           wholeWord: values.wholeWord,
         });
-        toast.success("Termo criado");
+        if (result.conflict) {
+          toast.warning(result.message ?? "Termo ja existente no glossario");
+        } else {
+          toast.success("Termo criado");
+        }
       }
       await refetch();
       setSelectedTerm(null);
@@ -158,8 +162,12 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
   const handleApprovePending = async (term: typeof pendingTerms[number]) => {
     setSaving(true);
     try {
-      await approvePendingTerm(term);
-      toast.success("Sugestão aprovada");
+      const result = await approvePendingTerm(term);
+      if (result.conflict) {
+        toast.warning(result.message ?? "Termo ja existente no glossario");
+      } else {
+        toast.success("Sugestao aprovada");
+      }
       await refetch();
     } catch (err) {
       toast.error((err as Error).message ?? "Não foi possível aprovar a sugestão");
@@ -218,8 +226,13 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
     }
     setSaving(true);
     try {
-      await approvePendingTerms(selectedPendingTerms);
-      toast.success("Sugestões aprovadas");
+      const result = await approvePendingTerms(selectedPendingTerms);
+      if (result.created.length > 0) {
+        toast.success(`${result.created.length} sugestoes aprovadas`);
+      }
+      if (result.conflicts.length > 0) {
+        toast.warning(`${result.conflicts.length} sugestoes ja existiam no glossario`);
+      }
       setSelectedPendingIds([]);
       await refetch();
     } catch (err) {
@@ -238,8 +251,13 @@ export default function GlossaryPage({ params }: { params: Promise<{ bookId: str
     }
     setSaving(true);
     try {
-      await approvePendingTerms(pendingTerms);
-      toast.success("Sugestões aprovadas");
+      const result = await approvePendingTerms(pendingTerms);
+      if (result.created.length > 0) {
+        toast.success(`${result.created.length} sugestoes aprovadas`);
+      }
+      if (result.conflicts.length > 0) {
+        toast.warning(`${result.conflicts.length} sugestoes ja existiam no glossario`);
+      }
       setSelectedPendingIds([]);
       await refetch();
     } catch (err) {

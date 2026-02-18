@@ -37,7 +37,7 @@ export function BookActions({ bookId, onDeleted }: { bookId: string; onDeleted?:
         >
           <span className="text-lg leading-none">⋯</span>
         </summary>
-        <div className="absolute right-0 top-11 z-10 w-44 rounded-2xl border border-border bg-surface p-2 shadow-[var(--shadow-soft)]">
+        <div className="absolute right-0 top-11 z-10 w-44 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-2 shadow-[var(--shadow-soft)]">
           <Link className={cn("block rounded-xl px-3 py-2 text-sm hover:bg-surface-muted")}
             href={`/books/${bookId}/edit`}
           >

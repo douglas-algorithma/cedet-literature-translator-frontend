@@ -18,7 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -140,6 +140,7 @@ function ParagraphSortable({
 export function NewChapterWizard({ bookId }: { bookId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const restoredBookIdRef = useRef<string | null>(null);
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState<"paragraph" | "bulk" | null>(null);
   const [modeLocked, setModeLocked] = useState(false);
@@ -203,9 +204,9 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     setBulkParagraphs([]);
   };
 
-  const clearWizardState = () => {
+  const clearWizardState = useCallback(() => {
     clearChapterWizardSession(bookId);
-  };
+  }, [bookId]);
 
   const buildChapterPayload = (selectedMode: "paragraph" | "bulk"): ChapterPayload => ({
     bookId,
@@ -284,6 +285,12 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   };
 
   useEffect(() => {
+    if (restoredBookIdRef.current === bookId) {
+      return;
+    }
+
+    restoredBookIdRef.current = bookId;
+    setSessionReady(false);
     let active = true;
 
     const restore = async () => {
@@ -344,7 +351,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     return () => {
       active = false;
     };
-  }, [bookId, setValue, suggestedNumber]);
+  }, [bookId, clearWizardState, setValue, suggestedNumber]);
 
   useEffect(() => {
     if (!sessionReady) {

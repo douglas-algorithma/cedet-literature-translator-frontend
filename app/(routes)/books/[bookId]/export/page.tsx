@@ -13,9 +13,9 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PAGE_TITLES } from "@/config/app";
 import { booksService } from "@/services/booksService";
 import { chaptersService } from "@/services/chaptersService";
-import type { Chapter, Paragraph } from "@/types/chapter";
+import type { Chapter, Paragraph as ChapterParagraph } from "@/types/chapter";
 
-type ExportFormat = "docx" | "txt" | "md";
+type ExportFormat = "docx" | "txt";
 
 type ExportOptions = {
   includeMetadata: boolean;
@@ -24,10 +24,21 @@ type ExportOptions = {
   includeNotes: boolean;
 };
 
+type ExportBookMetadata = {
+  title: string;
+  author?: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+};
+
+type NormalizedParagraph = {
+  original: string;
+  content: string;
+};
+
 const FORMAT_CARDS: { value: ExportFormat; label: string; description: string }[] = [
   { value: "docx", label: "DOCX", description: "Formato editável, ideal para revisão final." },
   { value: "txt", label: "TXT", description: "Arquivo leve, compatível com qualquer editor." },
-  { value: "md", label: "Markdown", description: "Formato estruturado para web e publicação." },
 ];
 
 const slugify = (value: string) =>
@@ -47,79 +58,217 @@ const downloadBlob = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+/**
+ * Returns a local timestamp used in exported metadata.
+ *
+ * Returns:
+ *   A formatted timestamp in pt-BR locale.
+ */
+const getCurrentExportTimestamp = () =>
+  new Date().toLocaleString("pt-BR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+/**
+ * Normalizes paragraph text for cleaner exports.
+ *
+ * Args:
+ *   value: Raw text from source or translation.
+ *
+ * Returns:
+ *   A single-line text with normalized spacing.
+ */
+const normalizeParagraphText = (value: string) =>
+  value
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join(" ")
+    .trim();
+
+/**
+ * Creates a normalized paragraph model for text and DOCX rendering.
+ *
+ * Args:
+ *   paragraph: Paragraph entity from chapter export list.
+ *
+ * Returns:
+ *   A normalized paragraph or null when content is empty.
+ */
+const normalizeParagraph = (paragraph: ChapterParagraph): NormalizedParagraph | null => {
+  const original = normalizeParagraphText(paragraph.original ?? "");
+  const translation = normalizeParagraphText(paragraph.translation ?? "");
+  const content = translation || original;
+
+  if (!content) {
+    return null;
+  }
+
+  return {
+    original,
+    content,
+  };
+};
+
+/**
+ * Builds a metadata block for text-based exports.
+ *
+ * Args:
+ *   book: Book metadata needed for export header.
+ *   includeMetadata: Whether metadata should be included.
+ *   includeTimestamp: Whether export timestamp should be included.
+ *
+ * Returns:
+ *   Metadata text block or empty string.
+ */
+const buildMetadataBlock = (
+  book: ExportBookMetadata,
+  includeMetadata: boolean,
+  includeTimestamp: boolean,
+) => {
+  if (!includeMetadata) {
+    return "";
+  }
+
+  const lines = [
+    `Título: ${book.title}`,
+    `Autor: ${book.author ?? "—"}`,
+    `Idiomas: ${book.sourceLanguage} → ${book.targetLanguage}`,
+  ];
+
+  if (includeTimestamp) {
+    lines.push(`Exportado em: ${getCurrentExportTimestamp()}`);
+  }
+
+  return lines.join("\n");
+};
+
+/**
+ * Builds one text block for a chapter paragraph.
+ *
+ * Args:
+ *   paragraph: Paragraph entity from chapter.
+ *   bilingual: Whether bilingual export is enabled.
+ *
+ * Returns:
+ *   Formatted text block for the paragraph.
+ */
+const buildParagraphTextBlock = (paragraph: ChapterParagraph, bilingual: boolean) => {
+  const normalizedParagraph = normalizeParagraph(paragraph);
+
+  if (!normalizedParagraph) {
+    return "";
+  }
+
+  if (!bilingual) {
+    return normalizedParagraph.content;
+  }
+
+  const lines: string[] = [];
+
+  if (normalizedParagraph.original) {
+    lines.push(`Original: ${normalizedParagraph.original}`);
+  }
+
+  lines.push(`Tradução: ${normalizedParagraph.content}`);
+  return lines.join("\n");
+};
+
 const buildChapterText = ({
   chapter,
   paragraphs,
   options,
 }: {
   chapter: Chapter;
-  paragraphs: Paragraph[];
+  paragraphs: ChapterParagraph[];
   options: ExportOptions;
 }) => {
-  const lines: string[] = [];
-  lines.push(`Capítulo ${chapter.number}: ${chapter.title}`);
-  lines.push("");
+  const blocks: string[] = [`Capítulo ${chapter.number}: ${chapter.title}`];
+
   if (options.includeEpigraphs && chapter.epigraph?.text) {
-    lines.push(`"${chapter.epigraph.text}"`);
+    const epigraphLines = [`"${normalizeParagraphText(chapter.epigraph.text)}"`];
+
     if (chapter.epigraph.author) {
-      lines.push(`— ${chapter.epigraph.author}`);
+      epigraphLines.push(`— ${normalizeParagraphText(chapter.epigraph.author)}`);
     }
-    lines.push("");
+
+    blocks.push(epigraphLines.join("\n"));
   }
-  paragraphs.forEach((paragraph) => {
-    const translation = paragraph.translation ?? "";
-    const original = paragraph.original ?? "";
-    if (options.bilingual) {
-      lines.push(original);
-      lines.push(translation || "");
-    } else {
-      lines.push(translation || original);
-    }
-    lines.push("");
-  });
+
+  const paragraphBlocks = paragraphs
+    .map((paragraph) => buildParagraphTextBlock(paragraph, options.bilingual))
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0);
+
+  blocks.push(...paragraphBlocks);
+
   if (options.includeNotes) {
-    lines.push("Notas do tradutor:");
-    lines.push("—");
-    lines.push("");
+    blocks.push("Notas do tradutor:");
   }
-  return lines.join("\n");
+
+  return blocks.join("\n\n");
 };
 
-const buildChapterMarkdown = ({
-  chapter,
-  paragraphs,
+/**
+ * Builds plain text file content for the entire book.
+ *
+ * Args:
+ *   book: Book metadata.
+ *   chapters: Ordered list of chapters.
+ *   paragraphLists: Paragraphs per chapter in the same order.
+ *   options: Export options selected by user.
+ *
+ * Returns:
+ *   Complete plain text content.
+ */
+const buildTextDocument = ({
+  book,
+  chapters,
+  paragraphLists,
   options,
 }: {
-  chapter: Chapter;
-  paragraphs: Paragraph[];
+  book: ExportBookMetadata;
+  chapters: Chapter[];
+  paragraphLists: ChapterParagraph[][];
   options: ExportOptions;
 }) => {
-  const lines: string[] = [];
-  lines.push(`## Capítulo ${chapter.number}: ${chapter.title}`);
-  lines.push("");
-  if (options.includeEpigraphs && chapter.epigraph?.text) {
-    lines.push(`> ${chapter.epigraph.text}`);
-    if (chapter.epigraph.author) {
-      lines.push(`> — ${chapter.epigraph.author}`);
-    }
-    lines.push("");
+  const sections: string[] = [];
+  const metadata = buildMetadataBlock(book, options.includeMetadata, true);
+
+  if (metadata) {
+    sections.push(metadata);
   }
-  paragraphs.forEach((paragraph) => {
-    const translation = paragraph.translation ?? "";
-    const original = paragraph.original ?? "";
-    if (options.bilingual) {
-      lines.push(`**Original:** ${original}`);
-      lines.push(`**Tradução:** ${translation || ""}`);
-    } else {
-      lines.push(translation || original);
-    }
-    lines.push("");
-  });
-  if (options.includeNotes) {
-    lines.push("> Notas do tradutor: ");
-    lines.push("");
-  }
-  return lines.join("\n");
+
+  const chapterSections = chapters.map((chapter, index) =>
+    buildChapterText({
+      chapter,
+      paragraphs: paragraphLists[index],
+      options,
+    }),
+  );
+
+  sections.push(...chapterSections);
+  return sections.join("\n\n\n");
+};
+
+/**
+ * Builds export filename with date suffix.
+ *
+ * Args:
+ *   title: Book title.
+ *   format: Selected output format.
+ *
+ * Returns:
+ *   Export filename ready for download.
+ */
+const buildExportFilename = (title: string, format: ExportFormat) => {
+  const dateSuffix = new Date().toISOString().slice(0, 10);
+  return `${slugify(title)}-${dateSuffix}.${format}`;
 };
 
 export default function ExportPage({ params }: { params: Promise<{ bookId: string }> }) {
@@ -166,18 +315,10 @@ export default function ExportPage({ params }: { params: Promise<{ bookId: strin
     if (!book || !chapters.length) return "";
     const chapter = chapters[0];
     const limitedParagraphs = previewParagraphs.slice(0, 2);
-    const metadata = options.includeMetadata
-      ? `Título: ${book.title}\nAutor: ${book.author ?? "—"}\nIdiomas: ${book.sourceLanguage} → ${book.targetLanguage}\n\n`
-      : "";
-    if (format === "md") {
-      return (
-        metadata +
-        `# ${book.title}\n\n` +
-        buildChapterMarkdown({ chapter, paragraphs: limitedParagraphs, options })
-      );
-    }
-    return metadata + buildChapterText({ chapter, paragraphs: limitedParagraphs, options });
-  }, [book, chapters, format, options, previewParagraphs]);
+    const metadata = buildMetadataBlock(book, options.includeMetadata, false);
+    const sections = [metadata, buildChapterText({ chapter, paragraphs: limitedParagraphs, options })].filter(Boolean);
+    return sections.join("\n\n");
+  }, [book, chapters, options, previewParagraphs]);
 
   const handleExport = async () => {
     if (!book) return;
@@ -192,75 +333,121 @@ export default function ExportPage({ params }: { params: Promise<{ bookId: strin
         orderedChapters.map((chapter) => chaptersService.listParagraphs(chapter.id)),
       );
 
-      if (format === "txt" || format === "md") {
-        const chapterContent = orderedChapters
-          .map((chapter, index) =>
-            format === "md"
-              ? buildChapterMarkdown({ chapter, paragraphs: paragraphLists[index], options })
-              : buildChapterText({ chapter, paragraphs: paragraphLists[index], options }),
-          )
-          .join("\n\n");
-        const metadata = options.includeMetadata
-          ? `Título: ${book.title}\nAutor: ${book.author ?? "—"}\nIdiomas: ${book.sourceLanguage} → ${book.targetLanguage}\n\n`
-          : "";
-        const content = format === "md" ? `${metadata}# ${book.title}\n\n${chapterContent}` : `${metadata}${chapterContent}`;
-        const blob = new Blob([content], {
-          type: format === "md" ? "text/markdown;charset=utf-8" : "text/plain;charset=utf-8",
+      if (format === "txt") {
+        const content = buildTextDocument({
+          book,
+          chapters: orderedChapters,
+          paragraphLists,
+          options,
         });
-        downloadBlob(blob, `${slugify(book.title)}.${format}`);
+        const blob = new Blob([content], {
+          type: "text/plain;charset=utf-8",
+        });
+        downloadBlob(blob, buildExportFilename(book.title, "txt"));
         toast.success("Exportação concluída");
         return;
       }
 
-      const { Document, Packer, Paragraph, TextRun } = await import("docx");
+      const { AlignmentType, Document, Packer, Paragraph, TextRun } = await import("docx");
+
+      const createMetadataParagraph = (text: string, bold = false) =>
+        new Paragraph({
+          children: [new TextRun({ text, bold })],
+          spacing: { after: 120 },
+        });
+
+      const createChapterTitleParagraph = (text: string, pageBreakBefore = false) =>
+        new Paragraph({
+          pageBreakBefore,
+          children: [new TextRun({ text, bold: true })],
+          spacing: { before: 160, after: 220 },
+        });
+
+      const createBodyParagraph = (text: string) =>
+        new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
+          indent: { firstLine: 420 },
+          spacing: { after: 220 },
+          children: [new TextRun({ text })],
+        });
+
+      const createBilingualBodyParagraph = (label: string, text: string) =>
+        new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
+          indent: { firstLine: 420 },
+          spacing: { after: 180 },
+          children: [new TextRun({ text: `${label}: `, bold: true }), new TextRun({ text })],
+        });
 
       const docParagraphs: InstanceType<typeof Paragraph>[] = [];
+
       if (options.includeMetadata) {
         docParagraphs.push(
-          new Paragraph({
-            children: [new TextRun({ text: `Título: ${book.title}`, bold: true })],
-          }),
-          new Paragraph({ text: `Autor: ${book.author ?? "—"}` }),
-          new Paragraph({ text: `Idiomas: ${book.sourceLanguage} → ${book.targetLanguage}` }),
-          new Paragraph({ text: "" }),
+          createMetadataParagraph(`Título: ${book.title}`, true),
+          createMetadataParagraph(`Autor: ${book.author ?? "—"}`),
+          createMetadataParagraph(`Idiomas: ${book.sourceLanguage} → ${book.targetLanguage}`),
+          createMetadataParagraph(`Exportado em: ${getCurrentExportTimestamp()}`),
+          new Paragraph({ text: "", spacing: { after: 200 } }),
         );
       }
 
       orderedChapters.forEach((chapter, index) => {
         docParagraphs.push(
-          new Paragraph({
-            children: [new TextRun({ text: `Capítulo ${chapter.number}: ${chapter.title}`, bold: true })],
-          }),
+          createChapterTitleParagraph(`Capítulo ${chapter.number}: ${chapter.title}`, index > 0),
         );
+
         if (options.includeEpigraphs && chapter.epigraph?.text) {
           docParagraphs.push(
             new Paragraph({
-              children: [new TextRun({ text: `"${chapter.epigraph.text}"`, italics: true })],
+              alignment: AlignmentType.RIGHT,
+              children: [new TextRun({ text: `"${normalizeParagraphText(chapter.epigraph.text)}"`, italics: true })],
+              spacing: { after: 80 },
             }),
           );
+
           if (chapter.epigraph.author) {
-            docParagraphs.push(new Paragraph({ text: `— ${chapter.epigraph.author}` }));
+            docParagraphs.push(
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                text: `— ${normalizeParagraphText(chapter.epigraph.author)}`,
+                spacing: { after: 220 },
+              }),
+            );
           }
         }
+
         paragraphLists[index].forEach((paragraph) => {
-          const translation = paragraph.translation ?? "";
-          const original = paragraph.original ?? "";
+          const normalizedParagraph = normalizeParagraph(paragraph);
+
+          if (!normalizedParagraph) {
+            return;
+          }
+
           if (options.bilingual) {
-            docParagraphs.push(new Paragraph({ text: `Original: ${original}` }));
-            docParagraphs.push(new Paragraph({ text: `Tradução: ${translation || ""}` }));
+            if (normalizedParagraph.original) {
+              docParagraphs.push(createBilingualBodyParagraph("Original", normalizedParagraph.original));
+            }
+
+            docParagraphs.push(createBilingualBodyParagraph("Tradução", normalizedParagraph.content));
           } else {
-            docParagraphs.push(new Paragraph({ text: translation || original }));
+            docParagraphs.push(createBodyParagraph(normalizedParagraph.content));
           }
         });
+
         if (options.includeNotes) {
-          docParagraphs.push(new Paragraph({ text: "Notas do tradutor:" }));
+          docParagraphs.push(
+            new Paragraph({
+              children: [new TextRun({ text: "Notas do tradutor:", bold: true })],
+              spacing: { before: 160, after: 120 },
+            }),
+            new Paragraph({ text: "", spacing: { after: 120 } }),
+          );
         }
-        docParagraphs.push(new Paragraph({ text: "" }));
       });
 
       const doc = new Document({ sections: [{ properties: {}, children: docParagraphs }] });
       const blob = await Packer.toBlob(doc);
-      downloadBlob(blob, `${slugify(book.title)}.docx`);
+      downloadBlob(blob, buildExportFilename(book.title, "docx"));
       toast.success("Exportação concluída");
     } catch (err) {
       toast.error((err as Error).message ?? "Não foi possível exportar o arquivo");
@@ -301,7 +488,7 @@ export default function ExportPage({ params }: { params: Promise<{ bookId: strin
       ) : null}
 
       <Card className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
           {FORMAT_CARDS.map((card) => (
             <button
               key={card.value}

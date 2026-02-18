@@ -100,7 +100,7 @@ export function BookDashboard() {
         description="Acompanhe o andamento dos seus projetos e retome traduções em poucos cliques."
       />
 
-      <section className="grid gap-4 rounded-3xl border border-border bg-surface p-4 shadow-[var(--shadow-soft)] md:grid-cols-[2fr_1fr_1fr]">
+      <section className="grid gap-4 rounded-3xl border border-border bg-surface p-4 shadow-[var(--shadow-soft)] sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
         <Input
           placeholder="Buscar por título ou autor"
           aria-label="Buscar por título ou autor"
@@ -128,7 +128,7 @@ export function BookDashboard() {
       </section>
 
       {isLoading ? (
-        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 4 }).map((_, index) => (
             <BookCardSkeleton key={`skeleton-${index}`} />
           ))}
@@ -149,7 +149,7 @@ export function BookDashboard() {
           description="Crie o primeiro livro para começar a traduzir com IA."
         />
       ) : (
-        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredBooks.map((book, index) => (
             <div
               key={book.id}

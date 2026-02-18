@@ -41,7 +41,7 @@ export function TranslationHeader({
   reconnectAttempts,
 }: TranslationHeaderProps) {
   return (
-    <div className="sticky top-3 z-10 space-y-4 rounded-3xl border border-border bg-surface/95 p-4 shadow-[var(--shadow-soft)] backdrop-blur sm:top-6 sm:p-5">
+    <div className="sticky top-14 z-10 space-y-3 rounded-3xl border border-border bg-surface/95 p-3 shadow-[var(--shadow-soft)] backdrop-blur sm:top-16 sm:space-y-4 sm:p-4 lg:p-5">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-6">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -51,19 +51,22 @@ export function TranslationHeader({
             <ConnectionBadge status={connectionStatus} reconnectAttempts={reconnectAttempts} />
           </div>
           <h1
-            className="font-display text-lg font-semibold leading-snug text-text sm:text-xl xl:text-2xl [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+            className="font-display text-base font-semibold leading-tight text-text break-words sm:text-lg lg:text-xl xl:text-2xl [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
             title={title}
           >
             {title}
           </h1>
           {subtitle ? (
-            <p className="text-xs text-text-muted break-words sm:text-sm" title={subtitle}>
+            <p
+              className="text-xs text-text-muted break-words sm:text-sm [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+              title={subtitle}
+            >
               {subtitle}
             </p>
           ) : null}
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-[minmax(220px,280px)_auto_auto] xl:items-end xl:justify-end">
-          <div className="w-full sm:col-span-2 xl:col-span-1">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:grid-cols-[minmax(200px,240px)_auto_auto] lg:items-end lg:justify-end xl:grid-cols-[minmax(220px,280px)_auto_auto]">
+          <div className="w-full sm:col-span-2 lg:col-span-1">
             <Select
               label="Capítulo"
               value={selectedChapter}
