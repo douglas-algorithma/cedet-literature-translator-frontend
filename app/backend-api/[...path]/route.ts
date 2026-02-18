@@ -29,12 +29,25 @@ const forwardRequest = async (
   const targetUrl = buildTargetUrl(params.path ?? [], sourceUrl.searchParams.toString());
   const body =
     method === "GET" || method === "HEAD" ? undefined : await request.arrayBuffer();
-  const response = await fetch(targetUrl, {
-    method,
-    headers: buildForwardHeaders(request),
-    body,
-    redirect: "manual",
-  });
+  let response: Response;
+  try {
+    response = await fetch(targetUrl, {
+      method,
+      headers: buildForwardHeaders(request),
+      body,
+      redirect: "manual",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro de comunicação com backend";
+    return NextResponse.json(
+      {
+        detail: message,
+      },
+      {
+        status: 502,
+      },
+    );
+  }
   const responseHeaders = new Headers(response.headers);
   responseHeaders.delete("content-encoding");
   responseHeaders.delete("content-length");
@@ -45,6 +58,8 @@ const forwardRequest = async (
 };
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export async function GET(
   request: Request,

@@ -7,10 +7,11 @@ import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/common/Button";
 import { ComboBox } from "@/components/common/ComboBox";
 import { Input } from "@/components/common/Input";
+import { Select } from "@/components/common/Select";
 import { Textarea } from "@/components/common/Textarea";
-import { GENRE_OPTIONS, LANGUAGE_OPTIONS } from "@/config/books";
+import { GENRE_OPTIONS, LANGUAGE_OPTIONS, LLM_MODEL_OPTIONS } from "@/config/books";
 import { cn } from "@/lib/utils";
-import { bookSchema, type BookFormValues } from "@/lib/validation";
+import { bookCreateSchema, bookSchema, type BookFormValues } from "@/lib/validation";
 
 const defaultValues: BookFormValues = {
   title: "",
@@ -20,6 +21,8 @@ const defaultValues: BookFormValues = {
   description: "",
   genre: [],
   translationNotes: "",
+  llmModel: "openai/gpt-4.1",
+  openrouterApiKey: "",
 };
 
 export function BookForm({
@@ -27,15 +30,23 @@ export function BookForm({
   onSubmit,
   submitLabel,
   loading,
+  requireApiKey = false,
+  apiKeyMasked,
 }: {
   initialValues?: Partial<BookFormValues>;
   submitLabel: string;
   loading?: boolean;
+  requireApiKey?: boolean;
+  apiKeyMasked?: string;
   onSubmit: (values: BookFormValues) => Promise<void>;
 }) {
   const formDefaults = useMemo(
     () => ({ ...defaultValues, ...initialValues }),
     [initialValues],
+  );
+  const schema = useMemo(
+    () => (requireApiKey ? bookCreateSchema : bookSchema),
+    [requireApiKey],
   );
 
   const {
@@ -45,7 +56,7 @@ export function BookForm({
     formState: { errors, isValid, isSubmitting },
     setValue,
   } = useForm<BookFormValues>({
-    resolver: zodResolver(bookSchema),
+    resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: formDefaults,
   });
@@ -57,6 +68,15 @@ export function BookForm({
     label: language,
     value: language,
   }));
+  const modelOptions = LLM_MODEL_OPTIONS.map((model) => ({
+    label: model.label,
+    value: model.value,
+  }));
+  const apiKeyHint = apiKeyMasked
+    ? `Chave atual: ${apiKeyMasked}. Deixe em branco para manter.`
+    : requireApiKey
+      ? "Informe a chave OpenRouter deste livro."
+      : "Deixe em branco para manter a chave atual.";
 
   const toggleGenre = (value: string) => {
     const exists = genreSelection.includes(value);
@@ -108,6 +128,25 @@ export function BookForm({
           options={languageOptions}
           error={errors.targetLanguage?.message}
           {...register("targetLanguage")}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Select
+          label="Modelo LLM"
+          options={modelOptions}
+          error={errors.llmModel?.message}
+          {...register("llmModel")}
+        />
+        <Input
+          label="OpenRouter API Key"
+          type="password"
+          autoComplete="off"
+          required={requireApiKey}
+          placeholder={requireApiKey ? "sk-or-v1-..." : "Deixe em branco para manter"}
+          error={errors.openrouterApiKey?.message}
+          hint={apiKeyHint}
+          {...register("openrouterApiKey")}
         />
       </div>
 

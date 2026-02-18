@@ -1,4 +1,5 @@
 import { addRequestInterceptor, addResponseInterceptor } from "./httpClient";
+import { clearToken, getToken } from "./authService";
 
 let initialized = false;
 
@@ -8,17 +9,16 @@ export const initApiClient = () => {
   addRequestInterceptor((config) => {
     const headers = new Headers(config.headers);
     headers.set("Accept", "application/json");
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("cedet.auth.token");
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
+    const token = getToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
     return { ...config, headers };
   });
 
   addResponseInterceptor(async (response) => {
     if (response.status === 401) {
+      clearToken();
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }

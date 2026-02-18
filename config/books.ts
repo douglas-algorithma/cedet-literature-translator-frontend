@@ -54,3 +54,9 @@ export const GENRE_OPTIONS = [
   "Ensaio",
   "Policial",
 ] as const;
+
+export const LLM_MODEL_OPTIONS = [
+  { value: "openai/gpt-4.1", label: "OpenAI GPT-4.1" },
+  { value: "openai/gpt-4.1-mini", label: "OpenAI GPT-4.1 Mini" },
+  { value: "anthropic/claude-sonnet-4.6", label: "Anthropic Claude Sonnet 4.6" },
+] as const;

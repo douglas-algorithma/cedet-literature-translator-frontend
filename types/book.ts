@@ -1,4 +1,5 @@
 export type BookStatus = "draft" | "in_progress" | "completed" | "paused";
+export type LlmModel = "openai/gpt-4.1" | "openai/gpt-4.1-mini" | "anthropic/claude-sonnet-4.6";
 
 export type Book = {
   id: string;
@@ -17,15 +18,21 @@ export type Book = {
   genre?: string[];
   primaryCategory?: string;
   translationNotes?: string;
+  llmModel: LlmModel;
+  hasOpenrouterApiKey: boolean;
+  openrouterApiKeyMasked?: string;
 };
 
-export type BookPayload = Omit<
-  Book,
-  | "id"
-  | "createdAt"
-  | "updatedAt"
-  | "totalChapters"
-  | "translatedChapters"
-  | "totalParagraphs"
-  | "translatedParagraphs"
->;
+export type BookPayload = {
+  title: string;
+  author: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  status: BookStatus;
+  description?: string;
+  genre?: string[];
+  primaryCategory?: string;
+  translationNotes?: string;
+  llmModel?: LlmModel;
+  openrouterApiKey?: string;
+};

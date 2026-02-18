@@ -43,6 +43,42 @@ export type TranslationResult = {
   agentOutputs?: Record<string, unknown>;
 };
 
+export type TranslationJobStatus = "queued" | "running" | "completed" | "failed";
+
+export type TranslationJobUpdate = {
+  status: TranslationJobStatus;
+  message?: string;
+};
+
+type TranslationRequestOptions = {
+  onStatus?: (update: TranslationJobUpdate) => void;
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+};
+
+type TranslationResponsePayload = {
+  status: string;
+  strategy?: string | null;
+  thread_id?: string | null;
+  translated_text?: string | null;
+  review_package?: Record<string, unknown> | null;
+  agent_outputs?: Record<string, unknown>;
+};
+
+type TranslationJobStartPayload = {
+  job_id: string;
+  status: TranslationJobStatus;
+  message?: string | null;
+};
+
+type TranslationJobStatusPayload = {
+  job_id: string;
+  status: TranslationJobStatus;
+  message?: string | null;
+  result?: TranslationResponsePayload | null;
+  error?: string | null;
+};
+
 const handleResponse = <T>(response: { success: boolean; data?: T; error?: { message: string } }) => {
   if (!response.success) {
     throw new Error(response.error?.message ?? "Erro inesperado");
@@ -50,55 +86,105 @@ const handleResponse = <T>(response: { success: boolean; data?: T; error?: { mes
   return response.data as T;
 };
 
-export const translationService = {
-  translateParagraph: async (payload: TranslationRequestPayload) => {
-    const data = handleResponse<{
-      status: string;
-      strategy?: string | null;
-      thread_id?: string | null;
-      translated_text?: string | null;
-      review_package?: Record<string, unknown> | null;
-      agent_outputs?: Record<string, unknown>;
-    }>(
-      await apiClient.post("/translate/paragraph", {
-        book_id: payload.bookId,
-        book_title: payload.bookTitle,
-        chapter_number: payload.chapterNumber,
-        paragraph_sequence: payload.paragraphSequence,
-        source_language: payload.sourceLanguage,
-        target_language: payload.targetLanguage,
-        original_text: payload.originalText,
-        thread_id: payload.threadId,
-        previous_translated: payload.previousTranslated,
-        genre: payload.genre,
-        formality: payload.formality,
-        style_notes: payload.styleNotes,
-        tone: payload.tone,
-        specific_concerns: payload.specificConcerns,
-        context: payload.context,
-        glossary_entries: payload.glossaryEntries,
-        feedback_items: payload.feedbackItems?.map((item) => ({
-          feedback_id: item.feedbackId ?? `feedback-${Date.now()}`,
-          type: item.type ?? "CUSTOM",
-          issue: item.issue,
-          notes: item.notes ?? "",
-        })),
-      }),
-    );
+const noRetryConfig = { retries: 0, delay: 0 };
+const defaultPollIntervalMs = 1500;
+const defaultTimeoutMs = 15 * 60 * 1000;
 
-    return {
-      status: data.status,
-      strategy: data.strategy,
-      threadId: data.thread_id,
-      translatedText: data.translated_text,
-      reviewPackage: data.review_package,
-      agentOutputs: data.agent_outputs,
-    } satisfies TranslationResult;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const buildRequestPayload = (payload: TranslationRequestPayload) => ({
+  book_id: payload.bookId,
+  book_title: payload.bookTitle,
+  chapter_number: payload.chapterNumber,
+  paragraph_sequence: payload.paragraphSequence,
+  source_language: payload.sourceLanguage,
+  target_language: payload.targetLanguage,
+  original_text: payload.originalText,
+  thread_id: payload.threadId,
+  previous_translated: payload.previousTranslated,
+  genre: payload.genre,
+  formality: payload.formality,
+  style_notes: payload.styleNotes,
+  tone: payload.tone,
+  specific_concerns: payload.specificConcerns,
+  context: payload.context,
+  glossary_entries: payload.glossaryEntries,
+  feedback_items: payload.feedbackItems?.map((item) => ({
+    feedback_id: item.feedbackId ?? `feedback-${Date.now()}`,
+    type: item.type ?? "CUSTOM",
+    issue: item.issue,
+    notes: item.notes ?? "",
+  })),
+});
+
+const mapResult = (data: TranslationResponsePayload): TranslationResult => ({
+  status: data.status,
+  strategy: data.strategy,
+  threadId: data.thread_id,
+  translatedText: data.translated_text,
+  reviewPackage: data.review_package,
+  agentOutputs: data.agent_outputs,
+});
+
+const pollTranslationJob = async (
+  jobId: string,
+  options?: TranslationRequestOptions,
+): Promise<TranslationResponsePayload> => {
+  const pollIntervalMs = options?.pollIntervalMs ?? defaultPollIntervalMs;
+  const timeoutMs = options?.timeoutMs ?? defaultTimeoutMs;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt <= timeoutMs) {
+    const statusData = handleResponse<TranslationJobStatusPayload>(
+      await apiClient.get(`/translate/jobs/${jobId}`),
+    );
+    options?.onStatus?.({
+      status: statusData.status,
+      message: statusData.message ?? undefined,
+    });
+
+    if (statusData.status === "completed") {
+      if (!statusData.result) {
+        throw new Error("A tradução foi concluída sem resultado.");
+      }
+      return statusData.result;
+    }
+
+    if (statusData.status === "failed") {
+      throw new Error(statusData.error ?? statusData.message ?? "Falha ao processar tradução.");
+    }
+
+    await sleep(pollIntervalMs);
+  }
+
+  throw new Error("Tempo limite atingido ao aguardar conclusão da tradução.");
+};
+
+export const translationService = {
+  translateParagraph: async (
+    payload: TranslationRequestPayload,
+    options?: TranslationRequestOptions,
+  ) => {
+    const jobStart = handleResponse<TranslationJobStartPayload>(
+      await apiClient.post(
+        "/translate/paragraph/async",
+        buildRequestPayload(payload),
+        undefined,
+        noRetryConfig,
+      ),
+    );
+    options?.onStatus?.({
+      status: jobStart.status,
+      message: jobStart.message ?? undefined,
+    });
+    const data = await pollTranslationJob(jobStart.job_id, options);
+    return mapResult(data);
   },
   refineParagraph: async (
     payload: TranslationRequestPayload & {
       feedback: string;
     },
+    options?: TranslationRequestOptions,
   ) => {
     return translationService.translateParagraph({
       ...payload,
@@ -108,6 +194,6 @@ export const translationService = {
           issue: payload.feedback,
         },
       ],
-    });
+    }, options);
   },
 };

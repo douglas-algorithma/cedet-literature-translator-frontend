@@ -28,7 +28,7 @@ import { useWebSocket } from "@/lib/hooks/useWebSocket";
 import { booksService } from "@/services/booksService";
 import { chaptersService } from "@/services/chaptersService";
 import { glossaryService } from "@/services/glossaryService";
-import { translationService } from "@/services/translationService";
+import { translationService, type TranslationJobUpdate } from "@/services/translationService";
 import { useGlossaryStore } from "@/stores/glossaryStore";
 import { useTranslationStore } from "@/stores/translationStore";
 import type { Paragraph } from "@/types/chapter";
@@ -188,12 +188,41 @@ export default function TranslationEditorPage({
       if (!book || !chapter) return;
       setActiveParagraphId(paragraph.id);
       setStatus(paragraph.id, "translating");
-      setProgress(paragraph.id, { currentAgent: "Supervisor Agent", progress: 15 });
+      setProgress(paragraph.id, {
+        currentAgent: "Fila",
+        progress: 10,
+        message: "Enfileirando solicitação...",
+      });
 
       try {
         const meta = metaByParagraph[paragraph.id];
         const resolvedGenre =
           book.primaryCategory ?? (book.genre?.length ? book.genre.join(", ") : undefined);
+        const onJobStatus = (update: TranslationJobUpdate) => {
+          if (update.status === "queued") {
+            setProgress(paragraph.id, {
+              currentAgent: "Fila",
+              progress: 20,
+              message: update.message ?? "Aguardando execução no servidor...",
+            });
+            return;
+          }
+          if (update.status === "running") {
+            setProgress(paragraph.id, {
+              currentAgent: "Processando",
+              progress: 60,
+              message: update.message ?? "Traduzindo no servidor...",
+            });
+            return;
+          }
+          if (update.status === "completed") {
+            setProgress(paragraph.id, {
+              currentAgent: "Finalizando",
+              progress: 90,
+              message: update.message ?? "Consolidando resultado...",
+            });
+          }
+        };
         const result = feedback
           ? await translationService.refineParagraph({
               bookId: book.id,
@@ -210,7 +239,7 @@ export default function TranslationEditorPage({
               styleNotes: book.translationNotes,
               feedback,
               glossaryEntries: serializedGlossaryEntries,
-            })
+            }, { onStatus: onJobStatus })
           : await translationService.translateParagraph({
               bookId: book.id,
               bookTitle: book.title,
@@ -223,7 +252,7 @@ export default function TranslationEditorPage({
               context: book.description,
               styleNotes: book.translationNotes,
               glossaryEntries: serializedGlossaryEntries,
-            });
+            }, { onStatus: onJobStatus });
 
         const translatedText = result.translatedText;
         if (!translatedText) {

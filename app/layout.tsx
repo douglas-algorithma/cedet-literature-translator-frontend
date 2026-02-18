@@ -4,6 +4,7 @@ import { Newsreader, Space_Grotesk } from "next/font/google";
 
 import "./globals.css";
 
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { SEO_DEFAULTS } from "@/config/app";
@@ -35,13 +36,15 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={`${uiFont.variable} ${displayFont.variable} font-ui text-text antialiased`}>
         <Providers>
-          <div className="flex min-h-screen flex-col">
-            <AppHeader />
-            <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 animate-rise sm:px-6 sm:py-10">
-              {children}
-            </main>
-            <AppFooter />
-          </div>
+          <AuthGuard>
+            <div className="flex min-h-screen flex-col">
+              <AppHeader />
+              <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 animate-rise sm:px-6 sm:py-10">
+                {children}
+              </main>
+              <AppFooter />
+            </div>
+          </AuthGuard>
         </Providers>
       </body>
     </html>

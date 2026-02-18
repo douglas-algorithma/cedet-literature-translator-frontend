@@ -163,6 +163,10 @@ export function BookDetails({ bookId }: { bookId: string }) {
             Notas de tradução: {book.translationNotes}
           </p>
         ) : null}
+        <p className="text-sm text-text-muted">Modelo LLM: {book.llmModel}</p>
+        <p className="text-sm text-text-muted">
+          OpenRouter API Key: {book.openrouterApiKeyMasked ?? "Não configurada"}
+        </p>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">

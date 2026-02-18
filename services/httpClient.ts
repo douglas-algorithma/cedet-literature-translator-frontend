@@ -137,32 +137,32 @@ const requestWithRetry = async <T>(
 };
 
 export const apiClient = {
-  get: <T>(url: string, config?: RequestInit) =>
-    requestWithRetry<T>({ url, method: "GET", ...config }),
-  post: <T>(url: string, body?: unknown, config?: RequestInit) =>
+  get: <T>(url: string, config?: RequestInit, retryConfig?: RetryConfig) =>
+    requestWithRetry<T>({ url, method: "GET", ...config }, retryConfig),
+  post: <T>(url: string, body?: unknown, config?: RequestInit, retryConfig?: RetryConfig) =>
     requestWithRetry<T>({
       url,
       method: "POST",
       headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
       body: body ? JSON.stringify(body) : undefined,
       ...config,
-    }),
-  put: <T>(url: string, body?: unknown, config?: RequestInit) =>
+    }, retryConfig),
+  put: <T>(url: string, body?: unknown, config?: RequestInit, retryConfig?: RetryConfig) =>
     requestWithRetry<T>({
       url,
       method: "PUT",
       headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
       body: body ? JSON.stringify(body) : undefined,
       ...config,
-    }),
-  patch: <T>(url: string, body?: unknown, config?: RequestInit) =>
+    }, retryConfig),
+  patch: <T>(url: string, body?: unknown, config?: RequestInit, retryConfig?: RetryConfig) =>
     requestWithRetry<T>({
       url,
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
       body: body ? JSON.stringify(body) : undefined,
       ...config,
-    }),
-  delete: <T>(url: string, config?: RequestInit) =>
-    requestWithRetry<T>({ url, method: "DELETE", ...config }),
+    }, retryConfig),
+  delete: <T>(url: string, config?: RequestInit, retryConfig?: RetryConfig) =>
+    requestWithRetry<T>({ url, method: "DELETE", ...config }, retryConfig),
 };

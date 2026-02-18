@@ -20,6 +20,8 @@ export function NewBookForm() {
         description: values.description || undefined,
         genre: values.genre,
         translationNotes: values.translationNotes || undefined,
+        llmModel: values.llmModel,
+        openrouterApiKey: values.openrouterApiKey?.trim(),
         status: "draft",
       });
 
@@ -30,5 +32,5 @@ export function NewBookForm() {
     }
   };
 
-  return <BookForm submitLabel="Criar Livro" onSubmit={handleSubmit} />;
+  return <BookForm submitLabel="Criar Livro" onSubmit={handleSubmit} requireApiKey />;
 }

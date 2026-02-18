@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { buttonStyles, Button } from "@/components/common/Button";
+import { isAuthenticated, logout } from "@/services/authService";
 import { KeyboardShortcutsModal } from "@/components/common/KeyboardShortcutsModal";
 import { ICONS } from "@/config/icons";
 import { APP_NAME, APP_TAGLINE } from "@/config/app";
@@ -85,6 +86,18 @@ export function AppHeader() {
           {MAIN_NAV.map(renderNavItem)}
         </nav>
         <div className="flex items-center gap-2 sm:gap-3">
+          {isAuthenticated() ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+            >
+              Sair
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"

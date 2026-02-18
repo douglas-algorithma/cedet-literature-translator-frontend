@@ -16,6 +16,7 @@ export function EditBookForm({ bookId }: { bookId: string }) {
 
   const handleSubmit = async (values: BookFormValues) => {
     if (!book) return;
+    const normalizedApiKey = values.openrouterApiKey?.trim();
     await booksService.update(book.id, {
       title: values.title,
       author: values.author,
@@ -24,6 +25,8 @@ export function EditBookForm({ bookId }: { bookId: string }) {
       description: values.description || undefined,
       genre: values.genre,
       translationNotes: values.translationNotes || undefined,
+      llmModel: values.llmModel,
+      openrouterApiKey: normalizedApiKey || undefined,
       status: book.status,
     });
     toast.success("Alterações salvas");
@@ -58,7 +61,10 @@ export function EditBookForm({ bookId }: { bookId: string }) {
         description: book.description ?? "",
         genre: book.genre ?? [],
         translationNotes: book.translationNotes ?? "",
+        llmModel: book.llmModel,
+        openrouterApiKey: "",
       }}
+      apiKeyMasked={book.openrouterApiKeyMasked}
       onSubmit={handleSubmit}
     />
   );

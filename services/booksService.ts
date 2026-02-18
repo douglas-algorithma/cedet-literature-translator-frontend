@@ -14,6 +14,9 @@ type BookApi = {
   categories?: string[] | null;
   primary_category?: string | null;
   translation_notes?: string | null;
+  llm_model: "openai/gpt-4.1" | "openai/gpt-4.1-mini" | "anthropic/claude-sonnet-4.6";
+  has_openrouter_api_key: boolean;
+  openrouter_api_key_masked?: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -36,6 +39,9 @@ const mapBook = (book: BookApi): Book => ({
   genre: book.categories ?? [],
   primaryCategory: book.primary_category ?? undefined,
   translationNotes: book.translation_notes ?? undefined,
+  llmModel: book.llm_model,
+  hasOpenrouterApiKey: book.has_openrouter_api_key,
+  openrouterApiKeyMasked: book.openrouter_api_key_masked ?? undefined,
   status: book.status as Book["status"],
   createdAt: book.created_at,
   updatedAt: book.updated_at,
@@ -50,19 +56,28 @@ const toBookCreatePayload = (payload: BookPayload) => ({
   categories: payload.genre ?? [],
   primary_category: payload.primaryCategory ?? payload.genre?.[0],
   translation_notes: payload.translationNotes,
+  llm_model: payload.llmModel ?? "openai/gpt-4.1",
+  openrouter_api_key: payload.openrouterApiKey,
 });
 
-const toBookUpdatePayload = (payload: BookPayload) => ({
-  title: payload.title,
-  author: payload.author,
-  source_language: payload.sourceLanguage,
-  target_language: payload.targetLanguage,
-  description: payload.description,
-  categories: payload.genre ?? [],
-  primary_category: payload.primaryCategory ?? payload.genre?.[0],
-  translation_notes: payload.translationNotes,
-  status: payload.status,
-});
+const toBookUpdatePayload = (payload: BookPayload) => {
+  const requestPayload: Record<string, unknown> = {
+    title: payload.title,
+    author: payload.author,
+    source_language: payload.sourceLanguage,
+    target_language: payload.targetLanguage,
+    description: payload.description,
+    categories: payload.genre ?? [],
+    primary_category: payload.primaryCategory ?? payload.genre?.[0],
+    translation_notes: payload.translationNotes,
+    llm_model: payload.llmModel ?? "openai/gpt-4.1",
+    status: payload.status,
+  };
+  if (payload.openrouterApiKey) {
+    requestPayload.openrouter_api_key = payload.openrouterApiKey;
+  }
+  return requestPayload;
+};
 
 export const booksService = {
   list: async () => {
