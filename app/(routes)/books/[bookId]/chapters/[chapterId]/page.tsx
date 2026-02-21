@@ -42,6 +42,7 @@ type TranslationMeta = {
   threadId?: string;
   reviewPackage?: Record<string, unknown>;
   agentOutputs?: Record<string, unknown>;
+  enforcementReport?: Record<string, unknown>;
   lastTranslation?: string;
 };
 
@@ -257,11 +258,13 @@ export default function TranslationEditorPage({
       translation,
       reviewPackage,
       agentOutputs,
+      enforcementReport,
     }: {
       paragraphId: string;
       translation: string;
       reviewPackage?: Record<string, unknown> | null;
       agentOutputs?: Record<string, unknown>;
+      enforcementReport?: Record<string, unknown> | null;
     }) => {
       setReviewData(
         buildReview({
@@ -269,6 +272,7 @@ export default function TranslationEditorPage({
           translation,
           reviewPackage: reviewPackage ?? undefined,
           agentOutputs,
+          enforcementReport: enforcementReport ?? undefined,
         }),
       );
     },
@@ -372,6 +376,7 @@ export default function TranslationEditorPage({
             threadId: result.threadId ?? meta?.threadId,
             reviewPackage: result.reviewPackage ?? meta?.reviewPackage,
             agentOutputs: result.agentOutputs ?? meta?.agentOutputs,
+            enforcementReport: result.enforcementReport ?? meta?.enforcementReport,
             lastTranslation: translatedText,
           },
         }));
@@ -383,6 +388,7 @@ export default function TranslationEditorPage({
             translation: translatedText,
             reviewPackage: result.reviewPackage ?? undefined,
             agentOutputs: result.agentOutputs,
+            enforcementReport: result.enforcementReport ?? undefined,
           });
           await saveParagraphTranslation({
             paragraphId: paragraph.id,
@@ -689,6 +695,7 @@ export default function TranslationEditorPage({
           translation: paragraph.translation,
           reviewPackage: meta?.reviewPackage,
           agentOutputs: meta?.agentOutputs,
+          enforcementReport: meta?.enforcementReport,
         }),
       );
       focusParagraph(paragraph.id);
@@ -863,6 +870,7 @@ export default function TranslationEditorPage({
           translatedText?: string;
           reviewPackage?: Record<string, unknown> | null;
           agentOutputs?: Record<string, unknown>;
+          enforcementReport?: Record<string, unknown> | null;
           threadId?: string;
           progress?: number;
           currentAgent?: string;
@@ -880,6 +888,8 @@ export default function TranslationEditorPage({
               threadId: payload.threadId ?? state[payload.paragraphId]?.threadId,
               reviewPackage: payload.reviewPackage ?? state[payload.paragraphId]?.reviewPackage,
               agentOutputs: payload.agentOutputs ?? state[payload.paragraphId]?.agentOutputs,
+              enforcementReport:
+                payload.enforcementReport ?? state[payload.paragraphId]?.enforcementReport,
               lastTranslation: payload.translatedText,
             },
           }));
@@ -896,6 +906,7 @@ export default function TranslationEditorPage({
           translation: string;
           reviewPackage?: Record<string, unknown>;
           agentAnalysis?: Record<string, unknown>;
+          enforcementReport?: Record<string, unknown>;
           suggestions?: string[];
         };
         setReviewData(
@@ -904,6 +915,7 @@ export default function TranslationEditorPage({
             translation: payload.translation,
             reviewPackage: payload.reviewPackage,
             agentOutputs: payload.agentAnalysis,
+            enforcementReport: payload.enforcementReport,
             suggestions: payload.suggestions,
           }),
         );

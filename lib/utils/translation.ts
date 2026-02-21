@@ -61,7 +61,7 @@ const toStringArray = (value: unknown): string[] => {
   return [];
 };
 
-const firstNonEmpty = (...values: string[][]) => values.find((value) => value.length > 0) ?? [];
+const mergeStringArrays = (...values: string[][]) => uniqueStrings(values.flat());
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === "number") return value;
@@ -80,6 +80,17 @@ const toPercentScore = (value: unknown): number | undefined => {
 };
 
 const uniqueStrings = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
+const toSuggestionLine = (item: UnknownRecord) => {
+  const source = toDisplayString(item.source);
+  const description = toDisplayString(item.description);
+  const reason = toDisplayString(item.reason);
+  const prefix = source ? `${source}: ` : "";
+  if (description && reason) return `${prefix}${description} Não aplicada: ${reason}`;
+  if (description) return `${prefix}${description}`;
+  if (reason) return `${prefix}${reason}`;
+  return "";
+};
 
 const resolveAgentPayload = (
   agentOutputs: Record<string, unknown> | undefined,
@@ -178,26 +189,29 @@ const collectNotes = (
 export const parseAgentAnalysis = ({
   reviewPackage,
   agentOutputs,
+  enforcementReport,
 }: {
   reviewPackage?: Record<string, unknown>;
   agentOutputs?: Record<string, unknown>;
+  enforcementReport?: Record<string, unknown>;
 }): AgentAnalysis | undefined => {
-  if (!reviewPackage && !agentOutputs) return undefined;
+  if (!reviewPackage && !agentOutputs && !enforcementReport) return undefined;
 
   const resolvedReviewPackage = resolveReviewPackage(reviewPackage, agentOutputs);
   const glossaryPayload = resolveAgentPayload(agentOutputs, "glossary");
   const semanticPayload = resolveAgentPayload(agentOutputs, "semantic");
   const stylePayload = resolveAgentPayload(agentOutputs, "style_grammar");
   const consistencyPayload = resolveAgentPayload(agentOutputs, "consistency");
+  const enforcementPayload = asRecord(enforcementReport) ?? resolveAgentPayload(agentOutputs, "suggestion_enforcement");
 
-  const glossary = firstNonEmpty(
+  const glossary = mergeStringArrays(
     collectGlossaryFromReview(resolvedReviewPackage),
     collectGlossaryFromAgent(glossaryPayload),
     toStringArray(agentOutputs?.glossary),
     toStringArray(agentOutputs?.glossary_terms),
     toStringArray(agentOutputs?.terms),
   );
-  const consistencyWarnings = firstNonEmpty(
+  const consistencyWarnings = mergeStringArrays(
     collectConsistencyFromReview(resolvedReviewPackage),
     collectConsistencyFromAgent(consistencyPayload),
     toStringArray(agentOutputs?.consistency_warnings),
@@ -215,13 +229,41 @@ export const parseAgentAnalysis = ({
 
   const notes = collectNotes(resolvedReviewPackage, semanticPayload, stylePayload);
   const fallbackNotes = toStringArray(agentOutputs?.notes);
+  const enforcementNotes = toStringArray(enforcementPayload?.notes);
+  const appliedSuggestions = toRecordArray(enforcementPayload?.applied_suggestions)
+    .map((item) => toSuggestionLine(item))
+    .filter(Boolean);
+  const skippedSuggestions = toRecordArray(enforcementPayload?.skipped_suggestions)
+    .map((item) => toSuggestionLine(item))
+    .filter(Boolean);
+  const glossaryCoverage = asRecord(enforcementPayload?.glossary_coverage);
+  const missingGlossaryTerms = toStringArray(glossaryCoverage?.missing_terms);
+  const modeUsedRaw = toDisplayString(enforcementPayload?.mode_used);
+  const modeUsed = modeUsedRaw === "hard" || modeUsedRaw === "soft" ? modeUsedRaw : undefined;
+  const glossaryCoverageStatus = toDisplayString(glossaryCoverage?.status);
 
   return {
     glossary: glossary.length ? glossary : undefined,
     consistencyWarnings: consistencyWarnings.length ? consistencyWarnings : undefined,
     semanticScore,
     styleScore,
-    notes: notes.length ? notes : fallbackNotes.length ? fallbackNotes : undefined,
+    notes: mergeStringArrays(notes, fallbackNotes, enforcementNotes).length
+      ? mergeStringArrays(notes, fallbackNotes, enforcementNotes)
+      : undefined,
+    enforcement:
+      modeUsed ||
+      appliedSuggestions.length ||
+      skippedSuggestions.length ||
+      glossaryCoverageStatus ||
+      missingGlossaryTerms.length
+        ? {
+            modeUsed,
+            appliedSuggestions: appliedSuggestions.length ? appliedSuggestions : undefined,
+            skippedSuggestions: skippedSuggestions.length ? skippedSuggestions : undefined,
+            glossaryCoverageStatus: glossaryCoverageStatus || undefined,
+            missingGlossaryTerms: missingGlossaryTerms.length ? missingGlossaryTerms : undefined,
+          }
+        : undefined,
   };
 };
 
@@ -266,21 +308,39 @@ const collectSuggestionsFromAgentOutputs = (
   return uniqueStrings([...semanticSuggestions, ...styleSuggestions, ...consistencySuggestions]);
 };
 
+const collectSuggestionsFromEnforcement = (
+  enforcementPayload: UnknownRecord | undefined,
+): string[] => {
+  if (!enforcementPayload) return [];
+  const applied = toRecordArray(enforcementPayload.applied_suggestions)
+    .map((item) => toSuggestionLine(item))
+    .filter(Boolean);
+  const skipped = toRecordArray(enforcementPayload.skipped_suggestions)
+    .map((item) => toSuggestionLine(item))
+    .filter(Boolean);
+  const notes = toStringArray(enforcementPayload.notes);
+  return uniqueStrings([...applied, ...skipped, ...notes]);
+};
+
 export const parseSuggestions = ({
   reviewPackage,
   agentOutputs,
+  enforcementReport,
 }: {
   reviewPackage?: Record<string, unknown>;
   agentOutputs?: Record<string, unknown>;
+  enforcementReport?: Record<string, unknown>;
 }): string[] => {
-  if (!reviewPackage && !agentOutputs) return [];
+  if (!reviewPackage && !agentOutputs && !enforcementReport) return [];
   const resolvedReviewPackage = resolveReviewPackage(reviewPackage, agentOutputs);
   const semanticPayload = resolveAgentPayload(agentOutputs, "semantic");
   const stylePayload = resolveAgentPayload(agentOutputs, "style_grammar");
   const consistencyPayload = resolveAgentPayload(agentOutputs, "consistency");
-  return firstNonEmpty(
+  const enforcementPayload = asRecord(enforcementReport) ?? resolveAgentPayload(agentOutputs, "suggestion_enforcement");
+  return mergeStringArrays(
     collectSuggestionsFromReview(resolvedReviewPackage),
     collectSuggestionsFromAgentOutputs(semanticPayload, stylePayload, consistencyPayload),
+    collectSuggestionsFromEnforcement(enforcementPayload),
     toStringArray(agentOutputs?.suggestions),
     toStringArray(agentOutputs?.recommendations),
     toStringArray(agentOutputs?.actions),
@@ -292,16 +352,21 @@ export const buildReview = ({
   translation,
   reviewPackage,
   agentOutputs,
+  enforcementReport,
   suggestions,
 }: {
   paragraphId: string;
   translation: string;
   reviewPackage?: Record<string, unknown>;
   agentOutputs?: Record<string, unknown>;
+  enforcementReport?: Record<string, unknown>;
   suggestions?: string[];
 }): TranslationReview => ({
   paragraphId,
   translation,
-  analysis: parseAgentAnalysis({ reviewPackage, agentOutputs }),
-  suggestions: firstNonEmpty(suggestions ?? [], parseSuggestions({ reviewPackage, agentOutputs })),
+  analysis: parseAgentAnalysis({ reviewPackage, agentOutputs, enforcementReport }),
+  suggestions: mergeStringArrays(
+    suggestions ?? [],
+    parseSuggestions({ reviewPackage, agentOutputs, enforcementReport }),
+  ),
 });

@@ -11,6 +11,13 @@ export type AgentAnalysis = {
   styleScore?: number;
   consistencyWarnings?: string[];
   notes?: string[];
+  enforcement?: {
+    modeUsed?: "hard" | "soft";
+    appliedSuggestions?: string[];
+    skippedSuggestions?: string[];
+    glossaryCoverageStatus?: string;
+    missingGlossaryTerms?: string[];
+  };
 };
 
 export type TranslationReview = {

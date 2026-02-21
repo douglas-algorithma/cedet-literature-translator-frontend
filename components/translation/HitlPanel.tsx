@@ -57,6 +57,7 @@ export function HitlPanel({
   const hasSuggestions = Boolean(suggestions && suggestions.length > 0);
   const glossaryItems = analysis?.glossary ?? [];
   const consistencyItems = analysis?.consistencyWarnings ?? [];
+  const enforcement = analysis?.enforcement;
 
   const analysisSummary = useMemo(() => {
     const items: string[] = [];
@@ -171,6 +172,51 @@ export function HitlPanel({
                 </ul>
               ) : (
                 <p className="mt-2 text-sm text-text-muted">Nenhuma observação adicional.</p>
+              )}
+            </div>
+            <div className="rounded-2xl border border-border bg-surface p-4 md:col-span-2">
+              <p className="text-xs font-semibold text-text-muted">Suggestion Enforcement Agent</p>
+              {enforcement ? (
+                <div className="mt-2 space-y-2 text-sm text-text">
+                  {enforcement.modeUsed ? (
+                    <p>
+                      Modo de aplicação: <span className="font-semibold">{enforcement.modeUsed}</span>
+                    </p>
+                  ) : null}
+                  {enforcement.glossaryCoverageStatus ? (
+                    <p>
+                      Cobertura de glossário:{" "}
+                      <span className="font-semibold">{enforcement.glossaryCoverageStatus}</span>
+                    </p>
+                  ) : null}
+                  {enforcement.missingGlossaryTerms?.length ? (
+                    <p className="text-warning">
+                      Termos ausentes: {enforcement.missingGlossaryTerms.join(", ")}
+                    </p>
+                  ) : null}
+                  {enforcement.appliedSuggestions?.length ? (
+                    <div>
+                      <p className="font-semibold">Sugestões aplicadas</p>
+                      <ul className="mt-1 space-y-1">
+                        {enforcement.appliedSuggestions.map((item) => (
+                          <li key={item}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {enforcement.skippedSuggestions?.length ? (
+                    <div>
+                      <p className="font-semibold">Sugestões não aplicadas</p>
+                      <ul className="mt-1 space-y-1">
+                        {enforcement.skippedSuggestions.map((item) => (
+                          <li key={item}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-text-muted">Nenhuma informação de enforcement disponível.</p>
               )}
             </div>
           </div>

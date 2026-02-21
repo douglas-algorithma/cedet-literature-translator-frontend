@@ -34,6 +34,7 @@ export type TranslationRequestPayload = {
   context?: string;
   glossaryEntries?: string;
   feedbackItems?: TranslationFeedbackItemPayload[];
+  enforcementMode?: "hard" | "soft";
 };
 
 export type TranslationResult = {
@@ -43,6 +44,7 @@ export type TranslationResult = {
   translatedText?: string | null;
   reviewPackage?: Record<string, unknown> | null;
   agentOutputs?: Record<string, unknown>;
+  enforcementReport?: Record<string, unknown> | null;
 };
 
 export type TranslationJobStatus = "queued" | "running" | "completed" | "failed";
@@ -65,6 +67,7 @@ type TranslationResponsePayload = {
   translated_text?: string | null;
   review_package?: Record<string, unknown> | null;
   agent_outputs?: Record<string, unknown>;
+  enforcement_report?: Record<string, unknown> | null;
 };
 
 type TranslationJobStartPayload = {
@@ -113,6 +116,7 @@ const buildRequestPayload = (payload: TranslationRequestPayload) => ({
   specific_concerns: payload.specificConcerns,
   context: payload.context,
   glossary_entries: payload.glossaryEntries,
+  enforcement_mode: payload.enforcementMode,
   feedback_items: payload.feedbackItems?.map((item) => ({
     feedback_id: item.feedbackId ?? `feedback-${Date.now()}`,
     type: item.type ?? "CUSTOM",
@@ -128,6 +132,7 @@ const mapResult = (data: TranslationResponsePayload): TranslationResult => ({
   translatedText: data.translated_text,
   reviewPackage: data.review_package,
   agentOutputs: data.agent_outputs,
+  enforcementReport: data.enforcement_report,
 });
 
 const pollTranslationJob = async (
