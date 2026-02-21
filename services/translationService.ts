@@ -17,6 +17,8 @@ export type TranslationFeedbackItemPayload = {
 export type TranslationRequestPayload = {
   bookId: string;
   bookTitle?: string;
+  chapterId?: string;
+  paragraphId?: string;
   chapterNumber: number;
   paragraphSequence: number;
   sourceLanguage: string;
@@ -95,6 +97,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const buildRequestPayload = (payload: TranslationRequestPayload) => ({
   book_id: payload.bookId,
   book_title: payload.bookTitle,
+  chapter_id: payload.chapterId,
+  paragraph_id: payload.paragraphId,
   chapter_number: payload.chapterNumber,
   paragraph_sequence: payload.paragraphSequence,
   source_language: payload.sourceLanguage,

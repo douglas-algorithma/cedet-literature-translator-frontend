@@ -3,17 +3,19 @@
 import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Modal } from "@/components/common/Modal";
 import { Skeleton } from "@/components/common/Skeleton";
 import { Textarea } from "@/components/common/Textarea";
 import { Toggle } from "@/components/common/Toggle";
 import {
+  EditOriginalParagraphModal,
   GlossaryHighlightText,
   HitlPanel,
   ParagraphOriginalCard,
@@ -50,6 +52,7 @@ const mapBackendStatus = (status: Paragraph["status"]): TranslationStatus => {
 };
 
 const MAX_BATCH_CONCURRENCY = 5;
+const MAX_PARAGRAPH_TEXT_LENGTH = 100000;
 
 type TranslateParagraphMode = "manualReview" | "autoApprove";
 
@@ -68,6 +71,7 @@ export default function TranslationEditorPage({
 }) {
   const { bookId, chapterId } = use(params);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +83,12 @@ export default function TranslationEditorPage({
   const [isAddingOriginalParagraph, setIsAddingOriginalParagraph] = useState(false);
   const [isAddOriginalModalOpen, setIsAddOriginalModalOpen] = useState(false);
   const [newOriginalParagraphText, setNewOriginalParagraphText] = useState("");
+  const [isEditOriginalModalOpen, setIsEditOriginalModalOpen] = useState(false);
+  const [editingParagraphId, setEditingParagraphId] = useState<string | null>(null);
+  const [editedOriginalText, setEditedOriginalText] = useState("");
+  const [editOriginalError, setEditOriginalError] = useState<string | undefined>();
+  const [isSavingOriginalEdit, setIsSavingOriginalEdit] = useState(false);
+  const [isConfirmEditOriginalOpen, setIsConfirmEditOriginalOpen] = useState(false);
   const [activePanel, setActivePanel] = useState<"original" | "translation">("original");
 
   const {
@@ -123,6 +133,21 @@ export default function TranslationEditorPage({
     queryKey: ["glossary", bookId],
     queryFn: () => glossaryService.list(bookId),
   });
+
+  const updateParagraphInCache = useCallback(
+    (
+      paragraphId: string,
+      updater: (paragraph: Paragraph) => Paragraph,
+    ) => {
+      queryClient.setQueryData<Paragraph[]>(["paragraphs", chapterId], (current) => {
+        if (!current?.length) return current ?? [];
+        return current.map((paragraph) =>
+          paragraph.id === paragraphId ? updater(paragraph) : paragraph,
+        );
+      });
+    },
+    [chapterId, queryClient],
+  );
 
   const getParagraphStatus = useCallback(
     (paragraph: Paragraph) => statusByParagraph[paragraph.id] ?? mapBackendStatus(paragraph.status),
@@ -186,6 +211,10 @@ export default function TranslationEditorPage({
   );
 
   const reviewTargetParagraph = activeReviewParagraph ?? firstReviewParagraph;
+  const editingParagraph = useMemo(
+    () => paragraphs.find((paragraph) => paragraph.id === editingParagraphId),
+    [editingParagraphId, paragraphs],
+  );
 
   const reviewIndex = activeReviewParagraph
     ? paragraphs.findIndex((paragraph) => paragraph.id === activeReviewParagraph.id)
@@ -210,11 +239,16 @@ export default function TranslationEditorPage({
         translatedText,
         status,
       });
+      updateParagraphInCache(paragraphId, (paragraph) => ({
+        ...paragraph,
+        translation: translatedText,
+        status,
+      }));
       if (status === "approved") {
         setStatus(paragraphId, "approved");
       }
     },
-    [setStatus],
+    [setStatus, updateParagraphInCache],
   );
 
   const queueReviewForParagraph = useCallback(
@@ -292,6 +326,8 @@ export default function TranslationEditorPage({
           ? await translationService.refineParagraph({
               bookId: book.id,
               bookTitle: book.title,
+              chapterId: chapter.id,
+              paragraphId: paragraph.id,
               chapterNumber: chapter.number,
               paragraphSequence: paragraph.index,
               sourceLanguage: book.sourceLanguage,
@@ -308,6 +344,8 @@ export default function TranslationEditorPage({
           : await translationService.translateParagraph({
               bookId: book.id,
               bookTitle: book.title,
+              chapterId: chapter.id,
+              paragraphId: paragraph.id,
               chapterNumber: chapter.number,
               paragraphSequence: paragraph.index,
               sourceLanguage: book.sourceLanguage,
@@ -401,6 +439,11 @@ export default function TranslationEditorPage({
           translatedText: translationText,
           status: "approved",
         });
+        updateParagraphInCache(paragraphId, (paragraph) => ({
+          ...paragraph,
+          translation: translationText,
+          status: "approved",
+        }));
         setStatus(paragraphId, "approved");
         toast.success("Tradução aprovada.");
         await refetch();
@@ -409,49 +452,101 @@ export default function TranslationEditorPage({
         toast.error((error as Error).message ?? "Erro ao aprovar tradução");
       }
     },
-    [closeReview, refetch, setStatus],
+    [closeReview, refetch, setStatus, updateParagraphInCache],
   );
 
   const handleEditOriginal = useCallback(
-    async (paragraph: Paragraph) => {
-      const draft = window.prompt("Editar parágrafo original:", paragraph.original);
-      if (draft === null) return;
-      const normalized = draft.trim();
+    (paragraph: Paragraph) => {
+      setEditingParagraphId(paragraph.id);
+      setEditedOriginalText(paragraph.original);
+      setEditOriginalError(undefined);
+      setIsConfirmEditOriginalOpen(false);
+      setIsEditOriginalModalOpen(true);
+    },
+    [],
+  );
+
+  const handleCloseEditOriginalModal = useCallback(() => {
+    if (isSavingOriginalEdit) {
+      return;
+    }
+    setIsEditOriginalModalOpen(false);
+    setIsConfirmEditOriginalOpen(false);
+    setEditingParagraphId(null);
+    setEditedOriginalText("");
+    setEditOriginalError(undefined);
+  }, [isSavingOriginalEdit]);
+
+  const handleSubmitEditedOriginal = useCallback(
+    async (confirmTranslationReset: boolean) => {
+      if (!editingParagraph) return;
+      const normalized = editedOriginalText.trim();
       if (!normalized) {
-        toast.error("O parágrafo original não pode ficar vazio.");
+        const message = "O parágrafo original não pode ficar vazio.";
+        setEditOriginalError(message);
+        toast.error(message);
         return;
       }
-      const hadTranslation = Boolean(paragraph.translation?.trim());
-      if (
-        hadTranslation &&
-        !window.confirm(
-          "Este parágrafo já possui tradução. Ao editar o original, a tradução atual será removida. Deseja continuar?",
-        )
-      ) {
+      if (normalized.length > MAX_PARAGRAPH_TEXT_LENGTH) {
+        const message = `O parágrafo original não pode ultrapassar ${MAX_PARAGRAPH_TEXT_LENGTH} caracteres.`;
+        setEditOriginalError(message);
+        toast.error(message);
         return;
       }
+      const hadTranslation = Boolean(editingParagraph.translation?.trim());
+      if (hadTranslation && !confirmTranslationReset) {
+        setIsConfirmEditOriginalOpen(true);
+        return;
+      }
+
+      setIsSavingOriginalEdit(true);
       try {
-        await chaptersService.updateParagraph(paragraph.id, {
+        await chaptersService.updateParagraph(editingParagraph.id, {
           originalText: normalized,
           translatedText: hadTranslation ? null : undefined,
-          status: hadTranslation ? "pending" : paragraph.status,
+          status: hadTranslation ? "pending" : editingParagraph.status,
         });
+        updateParagraphInCache(editingParagraph.id, (paragraph) => ({
+          ...paragraph,
+          original: normalized,
+          translation: hadTranslation ? undefined : paragraph.translation,
+          status: hadTranslation ? "pending" : paragraph.status,
+        }));
         if (hadTranslation) {
-          setStatus(paragraph.id, "pending");
+          setStatus(editingParagraph.id, "pending");
           setMetaByParagraph((state) => {
             const next = { ...state };
-            delete next[paragraph.id];
+            delete next[editingParagraph.id];
             return next;
           });
         }
         toast.success("Parágrafo atualizado.");
+        handleCloseEditOriginalModal();
         await refetch();
       } catch (error) {
         toast.error((error as Error).message ?? "Erro ao atualizar parágrafo");
+      } finally {
+        setIsSavingOriginalEdit(false);
       }
     },
-    [refetch, setStatus],
+    [
+      editedOriginalText,
+      editingParagraph,
+      handleCloseEditOriginalModal,
+      refetch,
+      setStatus,
+      updateParagraphInCache,
+    ],
   );
+
+  const handleSaveEditedOriginal = useCallback(async () => {
+    await handleSubmitEditedOriginal(false);
+  }, [handleSubmitEditedOriginal]);
+
+  const handleConfirmEditedOriginal = useCallback(async () => {
+    setIsConfirmEditOriginalOpen(false);
+    await handleSubmitEditedOriginal(true);
+  }, [handleSubmitEditedOriginal]);
 
   const handleDeleteOriginal = useCallback(
     async (paragraph: Paragraph) => {
@@ -547,6 +642,10 @@ export default function TranslationEditorPage({
     const normalized = newOriginalParagraphText.trim();
     if (!normalized) {
       toast.error("O novo parágrafo não pode ficar vazio.");
+      return;
+    }
+    if (normalized.length > MAX_PARAGRAPH_TEXT_LENGTH) {
+      toast.error(`O novo parágrafo não pode ultrapassar ${MAX_PARAGRAPH_TEXT_LENGTH} caracteres.`);
       return;
     }
 
@@ -732,8 +831,18 @@ export default function TranslationEditorPage({
     chapterId,
     onEvent: (event) => {
       if (event.type === "translation.started") {
-        const payload = event.payload as { paragraphId: string };
+        const payload = event.payload as {
+          paragraphId: string;
+          progress?: number;
+          currentAgent?: string;
+          message?: string;
+        };
         setStatus(payload.paragraphId, "translating");
+        setProgress(payload.paragraphId, {
+          progress: payload.progress,
+          currentAgent: payload.currentAgent,
+          message: payload.message,
+        });
       }
       if (event.type === "translation.progress") {
         const payload = event.payload as {
@@ -745,6 +854,39 @@ export default function TranslationEditorPage({
         setProgress(payload.paragraphId, {
           progress: payload.progress,
           currentAgent: payload.currentAgent,
+          message: payload.message,
+        });
+      }
+      if (event.type === "translation.completed") {
+        const payload = event.payload as {
+          paragraphId: string;
+          translatedText?: string;
+          reviewPackage?: Record<string, unknown> | null;
+          agentOutputs?: Record<string, unknown>;
+          threadId?: string;
+          progress?: number;
+          currentAgent?: string;
+          message?: string;
+        };
+        if (payload.translatedText) {
+          updateParagraphInCache(payload.paragraphId, (paragraph) => ({
+            ...paragraph,
+            translation: payload.translatedText,
+          }));
+          setMetaByParagraph((state) => ({
+            ...state,
+            [payload.paragraphId]: {
+              ...state[payload.paragraphId],
+              threadId: payload.threadId ?? state[payload.paragraphId]?.threadId,
+              reviewPackage: payload.reviewPackage ?? state[payload.paragraphId]?.reviewPackage,
+              agentOutputs: payload.agentOutputs ?? state[payload.paragraphId]?.agentOutputs,
+              lastTranslation: payload.translatedText,
+            },
+          }));
+        }
+        setProgress(payload.paragraphId, {
+          progress: payload.progress ?? 100,
+          currentAgent: payload.currentAgent ?? "Concluido",
           message: payload.message,
         });
       }
@@ -768,7 +910,14 @@ export default function TranslationEditorPage({
         setActiveParagraphId(payload.paragraphId);
       }
       if (event.type === "translation.approved") {
-        const payload = event.payload as { paragraphId: string };
+        const payload = event.payload as { paragraphId: string; translatedText?: string };
+        if (payload.translatedText) {
+          updateParagraphInCache(payload.paragraphId, (paragraph) => ({
+            ...paragraph,
+            translation: payload.translatedText,
+            status: "approved",
+          }));
+        }
         setStatus(payload.paragraphId, "approved");
       }
       if (event.type === "translation.error") {
@@ -1018,10 +1167,37 @@ export default function TranslationEditorPage({
           placeholder="Digite o texto original do novo parágrafo"
           value={newOriginalParagraphText}
           onChange={(event) => setNewOriginalParagraphText(event.target.value)}
-          maxLength={4000}
+          maxLength={MAX_PARAGRAPH_TEXT_LENGTH}
           showCount
         />
       </Modal>
+
+      <EditOriginalParagraphModal
+        open={isEditOriginalModalOpen}
+        value={editedOriginalText}
+        onChange={(value) => {
+          setEditedOriginalText(value);
+          if (editOriginalError && value.trim()) {
+            setEditOriginalError(undefined);
+          }
+        }}
+        onClose={handleCloseEditOriginalModal}
+        onSave={handleSaveEditedOriginal}
+        loading={isSavingOriginalEdit}
+        error={editOriginalError}
+        maxLength={MAX_PARAGRAPH_TEXT_LENGTH}
+      />
+
+      <ConfirmDialog
+        open={isConfirmEditOriginalOpen}
+        title="Confirmar edição do original"
+        description="Este parágrafo já possui tradução. Ao salvar, a tradução atual será removida. Deseja continuar?"
+        confirmText="Salvar e limpar tradução"
+        cancelText="Voltar"
+        onConfirm={handleConfirmEditedOriginal}
+        onClose={() => setIsConfirmEditOriginalOpen(false)}
+        loading={isSavingOriginalEdit}
+      />
 
       <TranslationFooterBar
         pendingReviewCount={pendingReviewCount}
