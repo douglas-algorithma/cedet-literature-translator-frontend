@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/common/Button";
-import { ComboBox } from "@/components/common/ComboBox";
 import { Input } from "@/components/common/Input";
 import { Select } from "@/components/common/Select";
 import { Textarea } from "@/components/common/Textarea";
@@ -16,8 +15,8 @@ import { bookCreateSchema, bookSchema, type BookFormValues } from "@/lib/validat
 const defaultValues: BookFormValues = {
   title: "",
   author: "",
-  sourceLanguage: "",
-  targetLanguage: "",
+  sourceLanguage: "Inglês",
+  targetLanguage: "Português (BR)",
   description: "",
   genre: [],
   translationNotes: "",
@@ -70,7 +69,7 @@ export function BookForm({
     value: language,
   }));
   const modelOptions = LLM_MODEL_OPTIONS.map((model) => ({
-    label: model.label,
+    label: `${model.value.split("/")[1] ?? model.value} • ${model.label}`,
     value: model.value,
   }));
   const apiKeyHint = apiKeyMasked
@@ -116,16 +115,14 @@ export function BookForm({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <ComboBox
+        <Select
           label="Idioma Original"
-          placeholder="Selecione"
           options={languageOptions}
           error={errors.sourceLanguage?.message}
           {...register("sourceLanguage")}
         />
-        <ComboBox
+        <Select
           label="Idioma de Destino"
-          placeholder="Selecione"
           options={languageOptions}
           error={errors.targetLanguage?.message}
           {...register("targetLanguage")}

@@ -5,8 +5,18 @@ import { toast } from "sonner";
 
 import { BookForm } from "@/components/book/BookForm";
 import { Skeleton } from "@/components/common/Skeleton";
+import { LANGUAGE_OPTIONS } from "@/config/books";
 import { booksService } from "@/services/booksService";
 import type { BookFormValues } from "@/lib/validation";
+
+type LanguageValue = (typeof LANGUAGE_OPTIONS)[number];
+
+const normalizeLanguage = (value: string, fallback: LanguageValue): LanguageValue => {
+  if ((LANGUAGE_OPTIONS as readonly string[]).includes(value)) {
+    return value as LanguageValue;
+  }
+  return fallback;
+};
 
 export function EditBookForm({ bookId }: { bookId: string }) {
   const { data: book, isLoading, error } = useQuery({
@@ -56,8 +66,8 @@ export function EditBookForm({ bookId }: { bookId: string }) {
       initialValues={{
         title: book.title,
         author: book.author,
-        sourceLanguage: book.sourceLanguage,
-        targetLanguage: book.targetLanguage,
+        sourceLanguage: normalizeLanguage(book.sourceLanguage, "Inglês"),
+        targetLanguage: normalizeLanguage(book.targetLanguage, "Português (BR)"),
         description: book.description ?? "",
         genre: book.genre ?? [],
         translationNotes: book.translationNotes ?? "",

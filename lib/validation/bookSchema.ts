@@ -1,6 +1,11 @@
 import { z } from "zod";
 
+import { LANGUAGE_OPTIONS } from "@/config/books";
+
 const optionalText = (max: number) => z.string().max(max).optional().or(z.literal(""));
+const languageSchema = z.enum(LANGUAGE_OPTIONS, {
+  errorMap: () => ({ message: "Selecione um idioma válido" }),
+});
 const llmModelSchema = z.enum([
   "openai/gpt-4.1",
   "openai/gpt-4.1-mini",
@@ -11,8 +16,8 @@ const bookBaseSchema = z
   .object({
     title: z.string().min(3, "Mínimo de 3 caracteres").max(200, "Máximo de 200 caracteres"),
     author: z.string().min(2, "Mínimo de 2 caracteres").max(100, "Máximo de 100 caracteres"),
-    sourceLanguage: z.string().min(1, "Selecione o idioma original"),
-    targetLanguage: z.string().min(1, "Selecione o idioma de destino"),
+    sourceLanguage: languageSchema,
+    targetLanguage: languageSchema,
     description: optionalText(1000),
     genre: z.array(z.string()).optional(),
     translationNotes: optionalText(1000),
