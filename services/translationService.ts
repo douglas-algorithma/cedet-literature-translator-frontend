@@ -35,6 +35,7 @@ export type TranslationRequestPayload = {
   glossaryEntries?: string;
   feedbackItems?: TranslationFeedbackItemPayload[];
   enforcementMode?: "hard" | "soft";
+  maxRefinementIterations?: number;
 };
 
 export type TranslationResult = {
@@ -117,6 +118,7 @@ const buildRequestPayload = (payload: TranslationRequestPayload) => ({
   context: payload.context,
   glossary_entries: payload.glossaryEntries,
   enforcement_mode: payload.enforcementMode,
+  max_refinement_iterations: payload.maxRefinementIterations,
   feedback_items: payload.feedbackItems?.map((item) => ({
     feedback_id: item.feedbackId ?? `feedback-${Date.now()}`,
     type: item.type ?? "CUSTOM",

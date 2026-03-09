@@ -31,6 +31,34 @@ type ParagraphParsePreviewApi = {
     original_text: string;
     block_type: "paragraph" | "bullet";
   }>;
+  strategy_used: "heuristic" | "llm";
+  requires_user_decision: boolean;
+  decision_reason?: string | null;
+  fallback_segments: Array<{
+    index: number;
+    original_text: string;
+    block_type: "paragraph" | "bullet";
+  }>;
+  quality_flags: string[];
+};
+
+export type ParagraphParseStrategy = "heuristic" | "auto" | "llm";
+
+export type ParagraphParsePreview = {
+  segments: Array<{
+    index: number;
+    text: string;
+    blockType: "paragraph" | "bullet";
+  }>;
+  strategyUsed: "heuristic" | "llm";
+  requiresUserDecision: boolean;
+  decisionReason?: string;
+  fallbackSegments: Array<{
+    index: number;
+    text: string;
+    blockType: "paragraph" | "bullet";
+  }>;
+  qualityFlags: string[];
 };
 
 const handleResponse = <T>(response: { success: boolean; data?: T; error?: { message: string } }) => {
@@ -174,15 +202,38 @@ export const chaptersService = {
       await apiClient.delete(`/paragraphs/${encodeURIComponent(paragraphId)}`),
     );
   },
-  parseParagraphPreview: async (text: string) => {
+  parseParagraphPreview: async (
+    text: string,
+    options?: {
+      chapterId?: string;
+      strategy?: ParagraphParseStrategy;
+      allowDegradedFallback?: boolean;
+    },
+  ): Promise<ParagraphParsePreview> => {
     const data = handleResponse<ParagraphParsePreviewApi>(
-      await apiClient.post("/paragraphs/parse-preview", { text }),
+      await apiClient.post("/paragraphs/parse-preview", {
+        text,
+        chapter_id: options?.chapterId,
+        strategy: options?.strategy ?? "heuristic",
+        allow_degraded_fallback: options?.allowDegradedFallback ?? false,
+      }),
     );
-    return data.segments.map((segment) => ({
-      index: segment.index,
-      text: segment.original_text,
-      blockType: segment.block_type,
-    }));
+    return {
+      segments: data.segments.map((segment) => ({
+        index: segment.index,
+        text: segment.original_text,
+        blockType: segment.block_type,
+      })),
+      strategyUsed: data.strategy_used,
+      requiresUserDecision: data.requires_user_decision,
+      decisionReason: data.decision_reason ?? undefined,
+      fallbackSegments: data.fallback_segments.map((segment) => ({
+        index: segment.index,
+        text: segment.original_text,
+        blockType: segment.block_type,
+      })),
+      qualityFlags: data.quality_flags,
+    };
   },
   bulkInsert: async (
     chapterId: string,

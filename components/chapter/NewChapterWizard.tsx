@@ -32,7 +32,7 @@ import {
   saveChapterWizardSession,
 } from "@/lib/utils/chapterWizardSession";
 import { chapterMetaSchema, type ChapterMetaFormValues } from "@/lib/validation";
-import { chaptersService } from "@/services/chaptersService";
+import { chaptersService, type ParagraphParseStrategy } from "@/services/chaptersService";
 import type { Chapter, ChapterPayload } from "@/types/chapter";
 
 const steps = ["Metadados", "Modo", "Conteúdo"];
@@ -153,6 +153,10 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   const [paragraphs, setParagraphs] = useState<ParagraphField[]>([createParagraph()]);
   const [bulkText, setBulkText] = useState("");
   const [bulkParagraphs, setBulkParagraphs] = useState<ParagraphField[]>([]);
+  const [pendingFallbackParagraphs, setPendingFallbackParagraphs] = useState<ParagraphField[]>([]);
+  const [parseDecisionReason, setParseDecisionReason] = useState<string | null>(null);
+  const [parseStrategyUsed, setParseStrategyUsed] = useState<"heuristic" | "llm" | null>(null);
+  const [parseQualityFlags, setParseQualityFlags] = useState<string[]>([]);
   const [parsingBulk, setParsingBulk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
@@ -206,6 +210,10 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     setParagraphs([createParagraph()]);
     setBulkText("");
     setBulkParagraphs([]);
+    setPendingFallbackParagraphs([]);
+    setParseDecisionReason(null);
+    setParseStrategyUsed(null);
+    setParseQualityFlags([]);
   };
 
   const clearWizardState = useCallback(() => {
@@ -434,6 +442,47 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     setBulkParagraphs(next);
   };
 
+  const clearParseDecisionState = () => {
+    setPendingFallbackParagraphs([]);
+    setParseDecisionReason(null);
+  };
+
+  const toParagraphFields = (
+    items: Array<{ text: string; blockType: "paragraph" | "bullet" }>,
+  ): ParagraphField[] => items.map((item) => createParagraph(item.text, item.blockType));
+
+  const runBulkParsing = async (strategy: ParagraphParseStrategy): Promise<ParagraphField[] | null> => {
+    const parsed = await chaptersService.parseParagraphPreview(bulkText, {
+      chapterId: chapterId ?? undefined,
+      strategy,
+      allowDegradedFallback: false,
+    });
+    setParseStrategyUsed(parsed.strategyUsed);
+    setParseQualityFlags(parsed.qualityFlags);
+    if (parsed.requiresUserDecision) {
+      const fallback = toParagraphFields(
+        parsed.fallbackSegments.map((item) => ({ text: item.text, blockType: item.blockType })),
+      );
+      setBulkParagraphs([]);
+      setPendingFallbackParagraphs(fallback);
+      setParseDecisionReason(parsed.decisionReason ?? "llm_unavailable");
+      toast.message("Segmentação via LLM indisponível. Escolha uma ação manual.");
+      return null;
+    }
+    clearParseDecisionState();
+    const parsedParagraphs = toParagraphFields(
+      parsed.segments.map((item) => ({ text: item.text, blockType: item.blockType })),
+    );
+    if (parsed.strategyUsed === "llm") {
+      toast.success("Segmentação assistida por LLM aplicada");
+    }
+    setBulkParagraphs(parsedParagraphs);
+    if (!parsedParagraphs.length) {
+      toast.message("Nenhum parágrafo identificado.");
+    }
+    return parsedParagraphs;
+  };
+
   const handleParseBulkText = async () => {
     if (!bulkText.trim()) {
       toast.error("Cole o texto completo do capítulo");
@@ -441,11 +490,32 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     }
     setParsingBulk(true);
     try {
-      const parsed = await chaptersService.parseParagraphPreview(bulkText);
-      setBulkParagraphs(parsed.map((item) => createParagraph(item.text, item.blockType)));
-      if (!parsed.length) {
-        toast.message("Nenhum parágrafo identificado.");
-      }
+      await runBulkParsing("auto");
+    } catch (error) {
+      toast.error((error as Error).message ?? "Erro ao analisar o texto");
+    } finally {
+      setParsingBulk(false);
+    }
+  };
+
+  const handleApplyHeuristicFallback = () => {
+    if (!pendingFallbackParagraphs.length) {
+      return;
+    }
+    setBulkParagraphs(pendingFallbackParagraphs);
+    setParseStrategyUsed("heuristic");
+    clearParseDecisionState();
+    toast.success("Fallback heurístico aplicado ao preview.");
+  };
+
+  const handleRetryLlmSegmentation = async () => {
+    if (!bulkText.trim()) {
+      toast.error("Cole o texto completo do capítulo");
+      return;
+    }
+    setParsingBulk(true);
+    try {
+      await runBulkParsing("llm");
     } catch (error) {
       toast.error((error as Error).message ?? "Erro ao analisar o texto");
     } finally {
@@ -484,8 +554,11 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     try {
       let source = bulkParagraphs;
       if (!source.length) {
-        const parsed = await chaptersService.parseParagraphPreview(bulkText);
-        source = parsed.map((item) => createParagraph(item.text, item.blockType));
+        const parsed = await runBulkParsing("auto");
+        if (parsed === null) {
+          return;
+        }
+        source = parsed;
       }
       const cleaned = source
         .map((item) => ({ text: item.text.trim(), blockType: item.blockType }))
@@ -735,6 +808,10 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
           onChange={(event) => {
             setBulkText(event.target.value);
             setBulkParagraphs([]);
+            setPendingFallbackParagraphs([]);
+            setParseDecisionReason(null);
+            setParseStrategyUsed(null);
+            setParseQualityFlags([]);
           }}
         />
         <div className="flex flex-wrap gap-2">
@@ -749,10 +826,38 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
             Adicionar parágrafo manual
           </Button>
         </div>
+        <p className="text-xs text-text-muted">
+          Em casos difíceis, a análise pode levar até 2 minutos quando o apoio de LLM for necessário.
+        </p>
+        {parseDecisionReason && pendingFallbackParagraphs.length > 0 ? (
+          <Card className="space-y-3 border border-warning/40 bg-warning/10">
+            <p className="text-sm font-semibold text-text">
+              A segmentação via LLM ficou indisponível para este texto.
+            </p>
+            <p className="text-xs text-text-muted">
+              Motivo: <span className="font-mono">{parseDecisionReason}</span>. Escolha continuar com fallback
+              heurístico ou tentar novamente o parsing com LLM.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={handleApplyHeuristicFallback}>
+                Usar fallback heurístico
+              </Button>
+              <Button type="button" variant="ghost" onClick={handleRetryLlmSegmentation} loading={parsingBulk}>
+                Tentar LLM novamente
+              </Button>
+            </div>
+          </Card>
+        ) : null}
         <div className="rounded-3xl border border-border bg-surface p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
             Preview editável ({bulkParagraphs.length} parágrafos)
+            {parseStrategyUsed ? ` • origem: ${parseStrategyUsed === "llm" ? "llm" : "heurístico"}` : ""}
           </p>
+          {parseQualityFlags.length > 0 ? (
+            <p className="mt-2 text-xs text-text-muted">
+              Flags de qualidade: {parseQualityFlags.join(", ")}
+            </p>
+          ) : null}
           {bulkParagraphs.length === 0 ? (
             <p className="mt-3 text-sm text-text-muted">
               Execute a análise para revisar, mover, editar e remover parágrafos antes de salvar.
