@@ -14,6 +14,9 @@ type TranslationHeaderProps = {
   chapterOptions: SelectOption[];
   selectedChapter: string;
   onChapterChange: (value: string) => void;
+  enforcementMode: string;
+  enforcementModeOptions: SelectOption[];
+  onEnforcementModeChange: (value: string) => void;
   progressLabel: string;
   progressValue: number;
   onTranslateAll: () => void;
@@ -31,6 +34,9 @@ export function TranslationHeader({
   chapterOptions,
   selectedChapter,
   onChapterChange,
+  enforcementMode,
+  enforcementModeOptions,
+  onEnforcementModeChange,
   progressLabel,
   progressValue,
   onTranslateAll,
@@ -65,13 +71,21 @@ export function TranslationHeader({
             </p>
           ) : null}
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:grid-cols-[minmax(200px,240px)_auto_auto] lg:items-end lg:justify-end xl:grid-cols-[minmax(220px,280px)_auto_auto]">
-          <div className="w-full sm:col-span-2 lg:col-span-1">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:grid-cols-[minmax(200px,240px)_minmax(150px,180px)_auto_auto] lg:items-end lg:justify-end xl:grid-cols-[minmax(220px,280px)_minmax(160px,190px)_auto_auto]">
+          <div className="w-full">
             <Select
               label="Capítulo"
               value={selectedChapter}
               options={chapterOptions}
               onChange={(event) => onChapterChange(event.target.value)}
+            />
+          </div>
+          <div className="w-full">
+            <Select
+              label="Glossário"
+              value={enforcementMode}
+              options={enforcementModeOptions}
+              onChange={(event) => onEnforcementModeChange(event.target.value)}
             />
           </div>
           {onGenerateGlossary ? (

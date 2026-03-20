@@ -54,12 +54,14 @@ const mapBackendStatus = (status: Paragraph["status"]): TranslationStatus => {
 
 const MAX_BATCH_CONCURRENCY = 5;
 const MAX_PARAGRAPH_TEXT_LENGTH = 100000;
+type EnforcementMode = "hard" | "soft";
 
 type TranslateParagraphMode = "manualReview" | "autoApprove";
 
 type TranslateParagraphOptions = {
   feedback?: string;
   mode?: TranslateParagraphMode;
+  enforcementMode?: EnforcementMode;
   refetchAfterSave?: boolean;
   showSuccessToast?: boolean;
   showErrorToast?: boolean;
@@ -79,6 +81,7 @@ export default function TranslationEditorPage({
   const [syncScroll, setSyncScroll] = useState(true);
   const [activeParagraphId, setActiveParagraphId] = useState<string | null>(null);
   const [metaByParagraph, setMetaByParagraph] = useState<Record<string, TranslationMeta>>({});
+  const [enforcementMode, setEnforcementMode] = useState<EnforcementMode>("soft");
   const [isBatchTranslating, setIsBatchTranslating] = useState(false);
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
   const [isAddingOriginalParagraph, setIsAddingOriginalParagraph] = useState(false);
@@ -201,6 +204,14 @@ export default function TranslationEditorPage({
     [chapters],
   );
 
+  const enforcementModeOptions = useMemo(
+    () => [
+      { value: "soft", label: "Soft" },
+      { value: "hard", label: "Hard" },
+    ],
+    [],
+  );
+
   const activeReviewParagraph = useMemo(
     () => paragraphs.find((paragraph) => paragraph.id === currentReview?.paragraphId),
     [currentReview, paragraphs],
@@ -279,16 +290,27 @@ export default function TranslationEditorPage({
     [setReviewData],
   );
 
+  const resolveParagraphEnforcementMode = useCallback(
+    (paragraphId: string): EnforcementMode | undefined => {
+      const report = metaByParagraph[paragraphId]?.enforcementReport;
+      const mode = report?.["mode_used"];
+      return mode === "hard" || mode === "soft" ? mode : undefined;
+    },
+    [metaByParagraph],
+  );
+
   const handleTranslateParagraph = useCallback(
     async (paragraph: Paragraph, options?: TranslateParagraphOptions) => {
       if (!book || !chapter) return false;
       const {
         feedback,
         mode = "manualReview",
+        enforcementMode: overrideEnforcementMode,
         refetchAfterSave = true,
         showSuccessToast = true,
         showErrorToast = true,
       } = options ?? {};
+      const resolvedEnforcementMode = overrideEnforcementMode ?? enforcementMode;
       setActiveParagraphId(paragraph.id);
       setStatus(paragraph.id, "translating");
       setProgress(paragraph.id, {
@@ -338,10 +360,12 @@ export default function TranslationEditorPage({
               targetLanguage: book.targetLanguage,
               originalText: paragraph.original,
               threadId: meta?.threadId,
-              previousTranslated: meta?.lastTranslation ?? paragraph.translation,
+              previousTranslated: paragraph.translation ?? meta?.lastTranslation,
               genre: resolvedGenre,
               context: book.description,
               styleNotes: book.translationNotes,
+              currentTranslation: paragraph.translation ?? meta?.lastTranslation,
+              enforcementMode: resolvedEnforcementMode,
               feedback,
               glossaryEntries: serializedGlossaryEntries,
             }, { onStatus: onJobStatus })
@@ -359,6 +383,7 @@ export default function TranslationEditorPage({
               context: book.description,
               styleNotes: book.translationNotes,
               glossaryEntries: serializedGlossaryEntries,
+              enforcementMode: resolvedEnforcementMode,
             }, { onStatus: onJobStatus });
 
         const translatedText = result.translatedText;
@@ -423,6 +448,7 @@ export default function TranslationEditorPage({
     [
       book,
       chapter,
+      enforcementMode,
       queueReviewForParagraph,
       metaByParagraph,
       refetch,
@@ -711,8 +737,9 @@ export default function TranslationEditorPage({
       toast.message("Nenhum parágrafo pendente.");
       return;
     }
+    const batchEnforcementMode = enforcementMode;
     const confirm = window.confirm(
-      `Iniciar tradução de ${pendingParagraphs.length} parágrafos pendentes com autoaprovação?`,
+      `Iniciar tradução de ${pendingParagraphs.length} parágrafos pendentes com autoaprovação no modo ${batchEnforcementMode}?`,
     );
     if (!confirm) return;
 
@@ -731,6 +758,7 @@ export default function TranslationEditorPage({
           }
           const success = await handleTranslateParagraph(paragraph, {
             mode: "autoApprove",
+            enforcementMode: batchEnforcementMode,
             refetchAfterSave: false,
             showSuccessToast: false,
             showErrorToast: false,
@@ -758,7 +786,7 @@ export default function TranslationEditorPage({
     } finally {
       setIsBatchTranslating(false);
     }
-  }, [getParagraphStatus, handleTranslateParagraph, paragraphs, refetch]);
+  }, [enforcementMode, getParagraphStatus, handleTranslateParagraph, paragraphs, refetch]);
 
   const handleSkipReview = useCallback(() => {
     closeReview();
@@ -977,6 +1005,9 @@ export default function TranslationEditorPage({
         chapterOptions={chapterOptions}
         selectedChapter={chapterId}
         onChapterChange={(value) => router.push(`/books/${bookId}/chapters/${value}`)}
+        enforcementMode={enforcementMode}
+        enforcementModeOptions={enforcementModeOptions}
+        onEnforcementModeChange={(value) => setEnforcementMode(value as EnforcementMode)}
         progressLabel={`${approvedCount}/${paragraphs.length} aprovados · ${translatedCount}/${paragraphs.length} traduzidos`}
         progressValue={progressValue}
         onTranslateAll={handleTranslateAll}
@@ -1129,6 +1160,7 @@ export default function TranslationEditorPage({
                               applied: coverage.applied,
                               missing: coverage.missing,
                               missingTerms: coverage.missingTerms.map((term) => term.targetTerm),
+                              modeUsed: resolveParagraphEnforcementMode(paragraph.id),
                             }
                           : undefined
                       }

@@ -308,20 +308,6 @@ const collectSuggestionsFromAgentOutputs = (
   return uniqueStrings([...semanticSuggestions, ...styleSuggestions, ...consistencySuggestions]);
 };
 
-const collectSuggestionsFromEnforcement = (
-  enforcementPayload: UnknownRecord | undefined,
-): string[] => {
-  if (!enforcementPayload) return [];
-  const applied = toRecordArray(enforcementPayload.applied_suggestions)
-    .map((item) => toSuggestionLine(item))
-    .filter(Boolean);
-  const skipped = toRecordArray(enforcementPayload.skipped_suggestions)
-    .map((item) => toSuggestionLine(item))
-    .filter(Boolean);
-  const notes = toStringArray(enforcementPayload.notes);
-  return uniqueStrings([...applied, ...skipped, ...notes]);
-};
-
 export const parseSuggestions = ({
   reviewPackage,
   agentOutputs,
@@ -336,11 +322,9 @@ export const parseSuggestions = ({
   const semanticPayload = resolveAgentPayload(agentOutputs, "semantic");
   const stylePayload = resolveAgentPayload(agentOutputs, "style_grammar");
   const consistencyPayload = resolveAgentPayload(agentOutputs, "consistency");
-  const enforcementPayload = asRecord(enforcementReport) ?? resolveAgentPayload(agentOutputs, "suggestion_enforcement");
   return mergeStringArrays(
     collectSuggestionsFromReview(resolvedReviewPackage),
     collectSuggestionsFromAgentOutputs(semanticPayload, stylePayload, consistencyPayload),
-    collectSuggestionsFromEnforcement(enforcementPayload),
     toStringArray(agentOutputs?.suggestions),
     toStringArray(agentOutputs?.recommendations),
     toStringArray(agentOutputs?.actions),

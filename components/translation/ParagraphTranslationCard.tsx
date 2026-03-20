@@ -17,6 +17,7 @@ type ParagraphTranslationCardProps = {
     applied: number;
     missing: number;
     missingTerms?: string[];
+    modeUsed?: "hard" | "soft";
   };
   dataParagraphId?: string;
   isActive?: boolean;
@@ -44,6 +45,7 @@ export function ParagraphTranslationCard({
   const showActions = status === "review";
   const isInteractive = Boolean(onOpenReview);
   const showGlossaryInfo = glossaryStatus && glossaryStatus.total > 0;
+  const isSoftGlossaryMode = glossaryStatus?.modeUsed === "soft";
 
   return (
     <div
@@ -144,15 +146,28 @@ export function ParagraphTranslationCard({
 
       {showGlossaryInfo ? (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-          <Badge variant={glossaryStatus.missing ? "warning" : "success"}>
-            Glossário {glossaryStatus.missing ? "pendente" : "ok"}
+          <Badge
+            variant={
+              glossaryStatus.missing
+                ? isSoftGlossaryMode
+                  ? "neutral"
+                  : "warning"
+                : "success"
+            }
+          >
+            Glossário{" "}
+            {glossaryStatus.missing
+              ? isSoftGlossaryMode
+                ? "parcial"
+                : "pendente"
+              : "ok"}
           </Badge>
           <span>
             {glossaryStatus.applied}/{glossaryStatus.total} termos aplicados
           </span>
           {glossaryStatus.missingTerms?.length ? (
-            <span className="break-words text-warning">
-              · Falta: {glossaryStatus.missingTerms.join(", ")}
+            <span className={cn("break-words", isSoftGlossaryMode ? "text-text-muted" : "text-warning")}>
+              · {isSoftGlossaryMode ? "Pode faltar" : "Falta"}: {glossaryStatus.missingTerms.join(", ")}
             </span>
           ) : null}
         </div>

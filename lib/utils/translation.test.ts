@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildReview, parseAgentAnalysis, parseSuggestions } from "./translation";
 
 describe("translation utils", () => {
-  it("merge suggestions from review, agents, fallback and enforcement", () => {
+  it("merge suggestions from review, agents and fallback", () => {
     const reviewPackage = {
       prioritized_issues: [{ description: "Issue review", suggestion: "Fix review" }],
     };
@@ -50,9 +50,9 @@ describe("translation utils", () => {
     expect(suggestions).toContain("Fix grammar");
     expect(suggestions).toContain("Fix consistency");
     expect(suggestions).toContain("Fallback recommendation");
-    expect(suggestions).toContain("enforcement: Applied enforcement");
-    expect(suggestions).toContain("enforcement: Skipped enforcement Não aplicada: Conflict");
-    expect(suggestions).toContain("Enforcement note");
+    expect(suggestions).not.toContain("enforcement: Applied enforcement");
+    expect(suggestions).not.toContain("enforcement: Skipped enforcement Não aplicada: Conflict");
+    expect(suggestions).not.toContain("Enforcement note");
   });
 
   it("parse enforcement metadata into agent analysis", () => {

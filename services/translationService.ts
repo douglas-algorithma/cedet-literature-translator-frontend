@@ -33,6 +33,7 @@ export type TranslationRequestPayload = {
   specificConcerns?: string;
   context?: string;
   glossaryEntries?: string;
+  currentTranslation?: string;
   feedbackItems?: TranslationFeedbackItemPayload[];
   enforcementMode?: "hard" | "soft";
   maxRefinementIterations?: number;
@@ -98,7 +99,7 @@ const defaultTimeoutMs = 15 * 60 * 1000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const buildRequestPayload = (payload: TranslationRequestPayload) => ({
+export const buildRequestPayload = (payload: TranslationRequestPayload) => ({
   book_id: payload.bookId,
   book_title: payload.bookTitle,
   chapter_id: payload.chapterId,
@@ -117,6 +118,7 @@ const buildRequestPayload = (payload: TranslationRequestPayload) => ({
   specific_concerns: payload.specificConcerns,
   context: payload.context,
   glossary_entries: payload.glossaryEntries,
+  current_translation: payload.currentTranslation,
   enforcement_mode: payload.enforcementMode,
   max_refinement_iterations: payload.maxRefinementIterations,
   feedback_items: payload.feedbackItems?.map((item) => ({
