@@ -71,6 +71,11 @@ const LLM_MODEL_COSTS = {
     inputPerMillion: 3,
     outputPerMillion: 15,
   },
+  "mistralai/mistral-large-2512": {
+    profile: "Rápido/Custo-benefício",
+    inputPerMillion: 0.5,
+    outputPerMillion: 1.5,
+  },
 } as const;
 
 const BASE_LLM_MODEL = "openai/gpt-4.1";

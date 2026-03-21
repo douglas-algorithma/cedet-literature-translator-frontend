@@ -14,7 +14,11 @@ type BookApi = {
   categories?: string[] | null;
   primary_category?: string | null;
   translation_notes?: string | null;
-  llm_model: "openai/gpt-4.1" | "openai/gpt-4.1-mini" | "anthropic/claude-sonnet-4.6";
+  llm_model:
+    | "openai/gpt-4.1"
+    | "openai/gpt-4.1-mini"
+    | "anthropic/claude-sonnet-4.6"
+    | "mistralai/mistral-large-2512";
   has_openrouter_api_key: boolean;
   openrouter_api_key_masked?: string | null;
   status: string;

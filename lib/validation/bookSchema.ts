@@ -10,6 +10,7 @@ const llmModelSchema = z.enum([
   "openai/gpt-4.1",
   "openai/gpt-4.1-mini",
   "anthropic/claude-sonnet-4.6",
+  "mistralai/mistral-large-2512",
 ]);
 
 const bookBaseSchema = z

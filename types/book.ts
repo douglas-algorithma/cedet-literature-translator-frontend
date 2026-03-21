@@ -1,5 +1,9 @@
 export type BookStatus = "draft" | "in_progress" | "completed" | "paused";
-export type LlmModel = "openai/gpt-4.1" | "openai/gpt-4.1-mini" | "anthropic/claude-sonnet-4.6";
+export type LlmModel =
+  | "openai/gpt-4.1"
+  | "openai/gpt-4.1-mini"
+  | "anthropic/claude-sonnet-4.6"
+  | "mistralai/mistral-large-2512";
 
 export type Book = {
   id: string;
