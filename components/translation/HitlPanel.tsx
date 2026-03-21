@@ -80,6 +80,7 @@ export function HitlPanel({
       title={`Revisão HITL · Parágrafo ${paragraphNumber}`}
       size="2xl"
       fullScreenOnMobile
+      renderInPortal
       footer={
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>

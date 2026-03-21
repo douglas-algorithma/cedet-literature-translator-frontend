@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ export function Modal({
   footer,
   size = "md",
   fullScreenOnMobile = false,
+  renderInPortal = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +23,7 @@ export function Modal({
   footer?: ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "2xl";
   fullScreenOnMobile?: boolean;
+  renderInPortal?: boolean;
 }) {
   const titleId = useId();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -75,9 +78,14 @@ export function Modal({
   if (!open) return null;
 
   const isNearFull = size === "2xl";
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+  const portalTarget = typeof window !== "undefined" ? document.body : null;
+  const modalContent = (
+    <div
+      className={cn(
+        "fixed inset-0 flex items-center justify-center p-3 sm:p-4",
+        renderInPortal ? "z-[70]" : "z-50",
+      )}
+    >
       <button
         type="button"
         className="absolute inset-0 h-full w-full bg-black/40"
@@ -127,4 +135,12 @@ export function Modal({
       </div>
     </div>
   );
+
+  if (renderInPortal) {
+    if (portalTarget) {
+      return createPortal(modalContent, portalTarget);
+    }
+  }
+
+  return modalContent;
 }
