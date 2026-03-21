@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
+import { Modal } from "@/components/common/Modal";
 import { Textarea } from "@/components/common/Textarea";
 import {
   clearChapterWizardSession,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/utils/chapterWizardSession";
 import { chapterMetaSchema, type ChapterMetaFormValues } from "@/lib/validation";
 import { chaptersService, type ParagraphParseStrategy } from "@/services/chaptersService";
+import { glossaryService } from "@/services/glossaryService";
 import type { Chapter, ChapterPayload } from "@/types/chapter";
 
 const steps = ["Metadados", "Modo", "Conteúdo"];
@@ -161,6 +163,9 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [showGlossaryPrompt, setShowGlossaryPrompt] = useState(false);
+  const [glossaryChapterId, setGlossaryChapterId] = useState<string | null>(null);
+  const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(TouchSensor));
 
@@ -536,7 +541,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
       for (let i = 0; i < cleaned.length; i += 1) {
         await chaptersService.addParagraph(chapterId, cleaned[i], i + 1);
       }
-      await handlePostSave();
+      await handlePostSave(chapterId);
     } catch (error) {
       toast.error((error as Error).message ?? "Erro ao salvar parágrafos");
     } finally {
@@ -568,7 +573,7 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
         return;
       }
       await chaptersService.bulkInsert(chapterId, cleaned);
-      await handlePostSave();
+      await handlePostSave(chapterId);
     } catch (error) {
       toast.error((error as Error).message ?? "Erro ao salvar capítulo");
     } finally {
@@ -576,22 +581,41 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
     }
   };
 
-  const handlePostSave = async () => {
+  const handlePostSave = async (savedChapterId: string) => {
     clearWizardState();
     await refreshChaptersCache();
-    toast.success("Capítulo criado", {
-      action: {
-        label: "Ir para tradução",
-        onClick: () =>
-          chapterId ? router.push(`/books/${bookId}/chapters/${chapterId}`) : undefined,
-      },
-      cancel: {
-        label: "Adicionar outro",
-        onClick: () => router.push(`/books/${bookId}/chapters/new`),
-      },
-    });
-    router.push(`/books/${bookId}`);
+    setGlossaryChapterId(savedChapterId);
+    setShowGlossaryPrompt(true);
+    toast.success("Capítulo criado. Recomendamos gerar o glossário agora.");
   };
+
+  const handleSkipGlossaryGeneration = useCallback(() => {
+    if (isGeneratingGlossary) {
+      return;
+    }
+    setShowGlossaryPrompt(false);
+    setGlossaryChapterId(null);
+    router.push(`/books/${bookId}`);
+  }, [bookId, isGeneratingGlossary, router]);
+
+  const handleGenerateGlossaryAndRedirect = useCallback(async () => {
+    if (!glossaryChapterId) {
+      toast.error("Capítulo inválido para gerar glossário.");
+      return;
+    }
+    setIsGeneratingGlossary(true);
+    try {
+      const suggestions = await glossaryService.generateSuggestions(glossaryChapterId);
+      toast.success(`${suggestions.length} sugestão(ões) de glossário gerada(s).`);
+      setShowGlossaryPrompt(false);
+      setGlossaryChapterId(null);
+      router.push(`/books/${bookId}/glossary`);
+    } catch (error) {
+      toast.error((error as Error).message ?? "Erro ao gerar sugestões de glossário.");
+    } finally {
+      setIsGeneratingGlossary(false);
+    }
+  }, [bookId, glossaryChapterId, router]);
 
   const updateChaptersCache = (chapter: Chapter) => {
     queryClient.setQueryData<Chapter[]>(getPlainChaptersQueryKey(bookId), (current = []) => {
@@ -912,9 +936,46 @@ export function NewChapterWizard({ bookId }: { bookId: string }) {
   };
 
   return (
-    <div className="space-y-8">
-      <Stepper current={step} />
-      {renderStep()}
-    </div>
+    <>
+      <div className="space-y-8">
+        <Stepper current={step} />
+        {renderStep()}
+      </div>
+      <Modal
+        open={showGlossaryPrompt}
+        onClose={handleSkipGlossaryGeneration}
+        title="Gerar glossário agora?"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleSkipGlossaryGeneration}
+              disabled={isGeneratingGlossary}
+            >
+              Agora não
+            </Button>
+            <Button
+              type="button"
+              onClick={handleGenerateGlossaryAndRedirect}
+              loading={isGeneratingGlossary}
+              disabled={!glossaryChapterId}
+            >
+              Gerar glossário
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-text">
+          Recomendamos gerar o glossário deste capítulo antes de continuar, para acelerar a revisão
+          dos termos.
+        </p>
+        {isGeneratingGlossary ? (
+          <p className="mt-3 text-xs font-medium text-text-muted">
+            Gerando sugestões de glossário. Aguarde...
+          </p>
+        ) : null}
+      </Modal>
+    </>
   );
 }

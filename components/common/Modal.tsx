@@ -19,7 +19,7 @@ export function Modal({
   title?: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   fullScreenOnMobile?: boolean;
 }) {
   const titleId = useId();
@@ -74,6 +74,8 @@ export function Modal({
 
   if (!open) return null;
 
+  const isNearFull = size === "2xl";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <button
@@ -96,6 +98,7 @@ export function Modal({
           size === "md" && "max-w-lg",
           size === "lg" && "max-w-2xl",
           size === "xl" && "max-w-4xl",
+          size === "2xl" && "max-w-[min(96rem,calc(100vw-2rem))]",
         )}
       >
         {title ? (
@@ -110,8 +113,12 @@ export function Modal({
           className={cn(
             "overflow-y-auto px-4 py-4 text-sm text-text sm:px-6 sm:py-5",
             fullScreenOnMobile
-              ? "max-h-[calc(100vh-8.5rem)] sm:max-h-[75vh]"
-              : "max-h-[70vh] md:max-h-[75vh]",
+              ? isNearFull
+                ? "max-h-[calc(100vh-8.5rem)] sm:max-h-[calc(100vh-11rem)]"
+                : "max-h-[calc(100vh-8.5rem)] sm:max-h-[75vh]"
+              : isNearFull
+                ? "max-h-[70vh] md:max-h-[calc(100vh-11rem)]"
+                : "max-h-[70vh] md:max-h-[75vh]",
           )}
         >
           {children}

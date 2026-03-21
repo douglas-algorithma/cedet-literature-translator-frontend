@@ -47,8 +47,8 @@ export function TranslationHeader({
   reconnectAttempts,
 }: TranslationHeaderProps) {
   return (
-    <div className="sticky top-14 z-10 space-y-3 rounded-3xl border border-border bg-surface/95 p-3 shadow-[var(--shadow-soft)] backdrop-blur sm:top-16 sm:space-y-4 sm:p-4 lg:p-5">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-6">
+    <div className="sticky top-16 z-10 space-y-3 rounded-3xl border border-border bg-surface/95 p-3 shadow-[var(--shadow-soft)] backdrop-blur sm:space-y-4 sm:p-4 lg:p-5">
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-start 2xl:gap-6">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Link href={backHref} className="text-sm font-semibold text-text-muted hover:text-text">
@@ -71,8 +71,8 @@ export function TranslationHeader({
             </p>
           ) : null}
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:grid-cols-[minmax(200px,240px)_minmax(150px,180px)_auto_auto] lg:items-end lg:justify-end xl:grid-cols-[minmax(220px,280px)_minmax(160px,190px)_auto_auto]">
-          <div className="w-full">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 2xl:w-auto 2xl:grid-cols-[minmax(220px,280px)_minmax(180px,220px)_auto_auto] 2xl:items-end 2xl:justify-end">
+          <div className="min-w-0 w-full">
             <Select
               label="Capítulo"
               value={selectedChapter}
@@ -80,7 +80,7 @@ export function TranslationHeader({
               onChange={(event) => onChapterChange(event.target.value)}
             />
           </div>
-          <div className="w-full">
+          <div className="min-w-0 w-full">
             <Select
               label="Glossário"
               value={enforcementMode}

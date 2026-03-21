@@ -78,7 +78,7 @@ export function HitlPanel({
       open={open}
       onClose={onClose}
       title={`Revisão HITL · Parágrafo ${paragraphNumber}`}
-      size="xl"
+      size="2xl"
       fullScreenOnMobile
       footer={
         <div className="flex flex-wrap justify-end gap-2">
@@ -93,47 +93,49 @@ export function HitlPanel({
       }
     >
       <div className="space-y-6">
-        <section className="space-y-2 rounded-2xl border border-border bg-surface-muted p-4">
-          <p className="text-xs font-semibold text-text-muted">Contexto imediato</p>
-          {previousText ? (
-            <p className="text-sm text-text-muted">Anterior: {previousText}</p>
-          ) : null}
-          <p className="text-sm text-text">
-            Atual: <span className="text-base font-bold text-text">{originalText}</span>
-          </p>
-          {nextText ? (
-            <p className="text-sm text-text-muted">Próximo: {nextText}</p>
-          ) : null}
-        </section>
-
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-text">Tradução proposta</h3>
-            {edited ? (
-              <button
-                type="button"
-                className="text-xs font-semibold text-brand"
-                onClick={() => {
-                  setDraft(translation);
-                  setEdited(false);
-                }}
-              >
-                Restaurar original
-              </button>
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <section className="space-y-2 rounded-2xl border border-border bg-surface-muted p-4">
+            <p className="text-xs font-semibold text-text-muted">Contexto imediato</p>
+            {previousText ? (
+              <p className="text-sm text-text-muted">Anterior: {previousText}</p>
             ) : null}
-          </div>
-          <Textarea
-            value={draft}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              setEdited(event.target.value !== translation);
-            }}
-            rows={6}
-          />
-          <p className="text-xs text-text-muted">
-            {draft.length} caracteres · Ctrl/Cmd + Enter para aprovar
-          </p>
-        </section>
+            <p className="text-sm text-text">
+              Atual: <span className="text-base font-bold text-text">{originalText}</span>
+            </p>
+            {nextText ? (
+              <p className="text-sm text-text-muted">Próximo: {nextText}</p>
+            ) : null}
+          </section>
+
+          <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text">Tradução proposta</h3>
+              {edited ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-brand"
+                  onClick={() => {
+                    setDraft(translation);
+                    setEdited(false);
+                  }}
+                >
+                  Restaurar original
+                </button>
+              ) : null}
+            </div>
+            <Textarea
+              value={draft}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setEdited(event.target.value !== translation);
+              }}
+              rows={8}
+            />
+            <p className="text-xs text-text-muted">
+              {draft.length} caracteres · Ctrl/Cmd + Enter para aprovar
+            </p>
+          </section>
+        </div>
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-text">Análises dos agentes</h3>
