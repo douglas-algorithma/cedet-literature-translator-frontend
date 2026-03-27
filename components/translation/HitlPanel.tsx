@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { Textarea } from "@/components/common/Textarea";
+import { useScrollSync } from "@/lib/hooks/useScrollSync";
 import type { AgentAnalysis } from "@/types/translation";
 
 type HitlPanelProps = {
@@ -37,6 +38,10 @@ export function HitlPanel({
   const [draft, setDraft] = useState(() => translation);
   const [feedback, setFeedback] = useState("");
   const [edited, setEdited] = useState(false);
+  const currentRef = useRef<HTMLDivElement>(null);
+  const translationRef = useRef<HTMLDivElement>(null);
+
+  useScrollSync({ enabled: open, leftRef: currentRef, rightRef: translationRef });
 
   useEffect(() => {
     if (!open) return;
@@ -94,21 +99,26 @@ export function HitlPanel({
       }
     >
       <div className="space-y-6">
-        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-          <section className="space-y-2 rounded-2xl border border-border bg-surface-muted p-4">
-            <p className="text-xs font-semibold text-text-muted">Contexto imediato</p>
-            {previousText ? (
-              <p className="text-sm text-text-muted">Anterior: {previousText}</p>
-            ) : null}
-            <p className="text-sm text-text">
-              Atual: <span className="text-base font-bold text-text">{originalText}</span>
-            </p>
-            {nextText ? (
-              <p className="text-sm text-text-muted">Próximo: {nextText}</p>
-            ) : null}
+        {previousText ? (
+          <section className="rounded-2xl border border-border bg-surface-muted p-4 lg:w-1/2">
+            <p className="text-xs font-semibold text-text-muted">Anterior</p>
+            <p className="mt-1 text-sm text-text-muted">{previousText}</p>
+          </section>
+        ) : null}
+
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+          <section
+            ref={currentRef}
+            className="max-h-64 overflow-y-auto rounded-2xl border border-border bg-surface-muted p-4"
+          >
+            <p className="text-xs font-semibold text-text-muted">Atual</p>
+            <p className="mt-1 text-base font-bold text-text">{originalText}</p>
           </section>
 
-          <section className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+          <section
+            ref={translationRef}
+            className="max-h-64 space-y-3 overflow-y-auto rounded-2xl border border-border bg-surface p-4"
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text">Tradução proposta</h3>
               {edited ? (
@@ -137,6 +147,13 @@ export function HitlPanel({
             </p>
           </section>
         </div>
+
+        {nextText ? (
+          <section className="rounded-2xl border border-border bg-surface-muted p-4 lg:w-1/2">
+            <p className="text-xs font-semibold text-text-muted">Próximo</p>
+            <p className="mt-1 text-sm text-text-muted">{nextText}</p>
+          </section>
+        ) : null}
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-text">Análises dos agentes</h3>
