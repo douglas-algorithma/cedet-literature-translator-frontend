@@ -56,6 +56,18 @@ const MAX_BATCH_CONCURRENCY = 5;
 const MAX_PARAGRAPH_TEXT_LENGTH = 100000;
 type EnforcementMode = "hard" | "soft";
 
+const GLOBAL_ERROR_PATTERNS = [
+  "Chave de API",
+  "Créditos insuficientes",
+  "expirada",
+  "Acesso negado",
+  "API key",
+  "User not found",
+];
+
+const isGlobalApiError = (message: string): boolean =>
+  GLOBAL_ERROR_PATTERNS.some((pattern) => message.toLowerCase().includes(pattern.toLowerCase()));
+
 type TranslateParagraphMode = "manualReview" | "autoApprove";
 
 type TranslateParagraphOptions = {
@@ -438,9 +450,16 @@ export default function TranslationEditorPage({
         }
         return true;
       } catch (error) {
-        setError(paragraph.id, (error as Error).message ?? "Erro ao traduzir.");
-        if (showErrorToast) {
-          toast.error((error as Error).message ?? "Erro ao traduzir parágrafo");
+        const errorMessage = (error as Error).message ?? "Erro ao traduzir.";
+        const isGlobal = isGlobalApiError(errorMessage);
+        if (isGlobal) {
+          toast.error(errorMessage, { duration: 8000, id: "global-api-error" });
+          setStatus(paragraph.id, "pending");
+        } else {
+          setError(paragraph.id, errorMessage);
+          if (showErrorToast) {
+            toast.error(errorMessage);
+          }
         }
         return false;
       }
@@ -961,8 +980,21 @@ export default function TranslationEditorPage({
         setStatus(payload.paragraphId, "approved");
       }
       if (event.type === "translation.error") {
-        const payload = event.payload as { paragraphId: string; error?: string };
-        setError(payload.paragraphId, payload.error ?? "Erro no processamento.");
+        const payload = event.payload as {
+          paragraphId: string;
+          error?: string;
+          errorCategory?: string;
+          isGlobalError?: boolean;
+        };
+        if (payload.isGlobalError) {
+          toast.error(payload.error ?? "Erro no processamento.", {
+            duration: 8000,
+            id: "global-api-error",
+          });
+          setStatus(payload.paragraphId, "pending");
+        } else {
+          setError(payload.paragraphId, payload.error ?? "Erro no processamento.");
+        }
       }
       if (event.type === "glossary.suggestion") {
         const payload = event.payload as {
