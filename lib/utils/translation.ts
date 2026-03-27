@@ -7,16 +7,48 @@ const asRecord = (value: unknown): UnknownRecord | undefined => {
   return value as UnknownRecord;
 };
 
+const FENCED_BLOCK_RE = /```(?:json)?\s*([\s\S]*?)\s*```/i;
+
+const tryParseJson = (text: string): unknown | undefined => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+};
+
+const extractJsonFromString = (text: string): unknown | undefined => {
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+
+  // 1. Try direct JSON parse
+  const direct = tryParseJson(trimmed);
+  if (direct !== undefined) return direct;
+
+  // 2. Try extracting from markdown fenced blocks (```json ... ```)
+  const fenceMatch = FENCED_BLOCK_RE.exec(trimmed);
+  if (fenceMatch?.[1]) {
+    const fenced = tryParseJson(fenceMatch[1].trim());
+    if (fenced !== undefined) return fenced;
+  }
+
+  // 3. Try finding first embedded JSON object in text
+  const braceStart = trimmed.indexOf("{");
+  if (braceStart !== -1) {
+    const candidate = trimmed.slice(braceStart);
+    const embedded = tryParseJson(candidate);
+    if (embedded !== undefined) return embedded;
+  }
+
+  return undefined;
+};
+
 const parseJsonRecord = (value: unknown): UnknownRecord | undefined => {
   const record = asRecord(value);
   if (record) return record;
   if (typeof value !== "string") return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    return asRecord(parsed);
-  } catch {
-    return undefined;
-  }
+  const parsed = extractJsonFromString(value);
+  return asRecord(parsed);
 };
 
 const toRecordArray = (value: unknown): UnknownRecord[] => {
