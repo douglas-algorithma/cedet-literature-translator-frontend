@@ -75,6 +75,32 @@ describe("translation utils", () => {
     );
   });
 
+  it("parse agent output wrapped in markdown fenced block", () => {
+    const fencedContent = '```json\n{"issues":[{"suggested_correction":"Fix fenced"}]}\n```';
+    const analysis = parseAgentAnalysis({
+      agentOutputs: {
+        semantic: { llm_output: { content: fencedContent } },
+      },
+    });
+    expect(analysis?.notes).toBeUndefined();
+    const suggestions = parseSuggestions({
+      agentOutputs: {
+        semantic: { llm_output: { content: fencedContent } },
+      },
+    });
+    expect(suggestions).toContain("Fix fenced");
+  });
+
+  it("parse agent output with leading text before JSON", () => {
+    const messyContent = 'Here is my analysis:\n{"semantic_score":0.85,"overall_assessment":"Good"}';
+    const analysis = parseAgentAnalysis({
+      agentOutputs: {
+        semantic: { llm_output: { content: messyContent } },
+      },
+    });
+    expect(analysis?.semanticScore).toBe(85);
+  });
+
   it("build review with explicit and parsed suggestions", () => {
     const review = buildReview({
       paragraphId: "p1",
