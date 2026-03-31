@@ -21,6 +21,7 @@ export function NewBookForm() {
         genre: values.genre,
         translationNotes: values.translationNotes || undefined,
         llmModel: values.llmModel,
+        defaultStrategy: values.defaultStrategy,
         openrouterApiKey: values.openrouterApiKey?.trim(),
         status: "draft",
       });

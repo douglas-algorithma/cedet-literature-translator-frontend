@@ -12,6 +12,7 @@ const llmModelSchema = z.enum([
   "anthropic/claude-sonnet-4.6",
   "mistralai/mistral-large-2512",
 ]);
+const translationStrategySchema = z.enum(["auto", "light", "single", "deep"]);
 
 const bookBaseSchema = z
   .object({
@@ -23,6 +24,7 @@ const bookBaseSchema = z
     genre: z.array(z.string()).optional(),
     translationNotes: optionalText(1000),
     llmModel: llmModelSchema.default("openai/gpt-4.1"),
+    defaultStrategy: translationStrategySchema.default("auto"),
     openrouterApiKey: z.string().max(512).optional().or(z.literal("")),
   })
   .refine((data) => data.sourceLanguage !== data.targetLanguage, {

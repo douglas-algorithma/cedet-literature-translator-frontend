@@ -21,6 +21,7 @@ const defaultValues: BookFormValues = {
   genre: [],
   translationNotes: "",
   llmModel: "openai/gpt-4.1",
+  defaultStrategy: "auto",
   openrouterApiKey: "",
 };
 
@@ -136,6 +137,20 @@ export function BookForm({
           error={errors.llmModel?.message}
           {...register("llmModel")}
         />
+        <Select
+          label="Estratégia de Tradução"
+          options={[
+            { label: "Automático (IA decide)", value: "auto" },
+            { label: "Light (rápido, sem revisão)", value: "light" },
+            { label: "Single (tradutor + revisão)", value: "single" },
+            { label: "Deep (pipeline completa)", value: "deep" },
+          ]}
+          error={errors.defaultStrategy?.message}
+          {...register("defaultStrategy")}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-sm text-text">
             <span className="font-medium">OpenRouter API Key</span>

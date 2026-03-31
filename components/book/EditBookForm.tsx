@@ -36,6 +36,7 @@ export function EditBookForm({ bookId }: { bookId: string }) {
       genre: values.genre,
       translationNotes: values.translationNotes || undefined,
       llmModel: values.llmModel,
+      defaultStrategy: values.defaultStrategy,
       openrouterApiKey: normalizedApiKey || undefined,
       status: book.status,
     });
@@ -72,6 +73,7 @@ export function EditBookForm({ bookId }: { bookId: string }) {
         genre: book.genre ?? [],
         translationNotes: book.translationNotes ?? "",
         llmModel: book.llmModel,
+        defaultStrategy: book.defaultStrategy ?? "auto",
         openrouterApiKey: "",
       }}
       apiKeyMasked={book.openrouterApiKeyMasked}
