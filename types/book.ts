@@ -4,6 +4,7 @@ export type LlmModel =
   | "openai/gpt-4.1-mini"
   | "anthropic/claude-sonnet-4.6"
   | "mistralai/mistral-large-2512";
+export type TranslationStrategy = "auto" | "light" | "single" | "deep";
 
 export type Book = {
   id: string;
@@ -23,6 +24,7 @@ export type Book = {
   primaryCategory?: string;
   translationNotes?: string;
   llmModel: LlmModel;
+  defaultStrategy: TranslationStrategy;
   hasOpenrouterApiKey: boolean;
   openrouterApiKeyMasked?: string;
 };
@@ -38,5 +40,6 @@ export type BookPayload = {
   primaryCategory?: string;
   translationNotes?: string;
   llmModel?: LlmModel;
+  defaultStrategy?: TranslationStrategy;
   openrouterApiKey?: string;
 };

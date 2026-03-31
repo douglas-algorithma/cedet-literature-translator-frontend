@@ -19,6 +19,7 @@ type BookApi = {
     | "openai/gpt-4.1-mini"
     | "anthropic/claude-sonnet-4.6"
     | "mistralai/mistral-large-2512";
+  default_strategy: "auto" | "light" | "single" | "deep";
   has_openrouter_api_key: boolean;
   openrouter_api_key_masked?: string | null;
   status: string;
@@ -44,6 +45,7 @@ const mapBook = (book: BookApi): Book => ({
   primaryCategory: book.primary_category ?? undefined,
   translationNotes: book.translation_notes ?? undefined,
   llmModel: book.llm_model,
+  defaultStrategy: book.default_strategy,
   hasOpenrouterApiKey: book.has_openrouter_api_key,
   openrouterApiKeyMasked: book.openrouter_api_key_masked ?? undefined,
   status: book.status as Book["status"],
@@ -61,6 +63,7 @@ const toBookCreatePayload = (payload: BookPayload) => ({
   primary_category: payload.primaryCategory ?? payload.genre?.[0],
   translation_notes: payload.translationNotes,
   llm_model: payload.llmModel ?? "openai/gpt-4.1",
+  default_strategy: payload.defaultStrategy ?? "auto",
   openrouter_api_key: payload.openrouterApiKey,
 });
 
@@ -75,6 +78,7 @@ const toBookUpdatePayload = (payload: BookPayload) => {
     primary_category: payload.primaryCategory ?? payload.genre?.[0],
     translation_notes: payload.translationNotes,
     llm_model: payload.llmModel ?? "openai/gpt-4.1",
+    default_strategy: payload.defaultStrategy,
     status: payload.status,
   };
   if (payload.openrouterApiKey) {

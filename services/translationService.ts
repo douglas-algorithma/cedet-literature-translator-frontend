@@ -37,6 +37,7 @@ export type TranslationRequestPayload = {
   feedbackItems?: TranslationFeedbackItemPayload[];
   enforcementMode?: "hard" | "soft";
   maxRefinementIterations?: number;
+  strategyOverride?: "auto" | "light" | "single" | "deep";
 };
 
 export type TranslationResult = {
@@ -121,6 +122,7 @@ export const buildRequestPayload = (payload: TranslationRequestPayload) => ({
   current_translation: payload.currentTranslation,
   enforcement_mode: payload.enforcementMode,
   max_refinement_iterations: payload.maxRefinementIterations,
+  strategy_override: payload.strategyOverride,
   feedback_items: payload.feedbackItems?.map((item) => ({
     feedback_id: item.feedbackId ?? `feedback-${Date.now()}`,
     type: item.type ?? "CUSTOM",

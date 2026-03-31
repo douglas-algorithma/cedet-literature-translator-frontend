@@ -5,6 +5,7 @@ import { Button } from "@/components/common/Button";
 import { Spinner } from "@/components/common/Spinner";
 import { TRANSLATION_STATUS_BADGES, TRANSLATION_STATUS_CARD_STYLES, TRANSLATION_STATUS_LABELS } from "@/config/translation";
 import { cn } from "@/lib/utils";
+import type { TranslationStrategy } from "@/types/book";
 import type { TranslationProgress, TranslationStatus } from "@/types/translation";
 
 type ParagraphTranslationCardProps = {
@@ -26,6 +27,8 @@ type ParagraphTranslationCardProps = {
   onOpenReview?: () => void;
   onRefine?: () => void;
   onRetry?: () => void;
+  strategyOverride?: TranslationStrategy;
+  onStrategyChange?: (strategy: TranslationStrategy) => void;
 };
 
 export function ParagraphTranslationCard({
@@ -41,6 +44,8 @@ export function ParagraphTranslationCard({
   onOpenReview,
   onRefine,
   onRetry,
+  strategyOverride,
+  onStrategyChange,
 }: ParagraphTranslationCardProps) {
   const showActions = status === "review";
   const isInteractive = Boolean(onOpenReview);
@@ -102,10 +107,23 @@ export function ParagraphTranslationCard({
       ) : null}
 
       {status === "pending" && onTranslate ? (
-        <div className="mt-3">
+        <div className="mt-3 flex items-center gap-2">
           <Button size="sm" variant="outline" className="min-h-10 w-full sm:w-auto" onClick={onTranslate}>
             Traduzir
           </Button>
+          {onStrategyChange ? (
+            <select
+              className="h-10 rounded-xl border border-border bg-surface px-3 text-xs text-text"
+              value={strategyOverride ?? "auto"}
+              onChange={(e) => onStrategyChange(e.target.value as TranslationStrategy)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="auto">Usar padrão do livro</option>
+              <option value="light">Light</option>
+              <option value="single">Single</option>
+              <option value="deep">Deep</option>
+            </select>
+          ) : null}
         </div>
       ) : null}
 
